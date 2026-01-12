@@ -1,0 +1,49 @@
+{
+  "amount": "10.0",
+  "category": "Cost",
+  "currentSpend": {
+    "amount": "0.0",
+    "unit": "EUR"
+  },
+  "eTag": "\"1dc83e52b0ffffb\"",
+  "id": "/subscriptions/a51a94c7-ee9c-48b6-8880-e0c4c1452650/providers/Microsoft.Consumption/budgets/budget-monthly",
+  "name": "budget-monthly",
+  "notifications": {
+    "actual_GTE_100": {
+      "contactEmails": [],
+      "contactGroups": [
+        "/subscriptions/A51A94C7-EE9C-48B6-8880-E0C4C1452650/resourceGroups/rg-ops-guardrails/providers/microsoft.insights/actionGroups/ag-budget-alerts"
+      ],
+      "contactRoles": [],
+      "enabled": true,
+      "operator": "GreaterThan",
+      "threshold": "100.0"
+    },
+    "actual_GTE_50": {
+      "contactEmails": [],
+      "contactGroups": [
+        "/subscriptions/A51A94C7-EE9C-48B6-8880-E0C4C1452650/resourceGroups/rg-ops-guardrails/providers/microsoft.insights/actionGroups/ag-budget-alerts"
+      ],
+      "contactRoles": [],
+      "enabled": true,
+      "operator": "GreaterThan",
+      "threshold": "50.0"
+    },
+    "actual_GTE_80": {
+      "contactEmails": [],
+      "contactGroups": [
+        "/subscriptions/A51A94C7-EE9C-48B6-8880-E0C4C1452650/resourceGroups/rg-ops-guardrails/providers/microsoft.insights/actionGroups/ag-budget-alerts"
+      ],
+      "contactRoles": [],
+      "enabled": true,
+      "operator": "GreaterThan",
+      "threshold": "80.0"
+    }
+  },
+  "timeGrain": "Monthly",
+  "timePeriod": {
+    "endDate": "2031-01-01T00:00:00Z",
+    "startDate": "2026-01-01T00:00:00Z"
+  },
+  "type": "Microsoft.Consumption/budgets"
+}

@@ -1,0 +1,27 @@
+{
+  "armRoleReceivers": [],
+  "automationRunbookReceivers": [],
+  "azureAppPushReceivers": [],
+  "azureFunctionReceivers": [],
+  "emailReceivers": [
+    {
+      "emailAddress": "erndweinmanuel@gmail.com",
+      "name": "me",
+      "status": "Enabled",
+      "useCommonAlertSchema": false
+    }
+  ],
+  "enabled": true,
+  "eventHubReceivers": [],
+  "groupShortName": "budget",
+  "id": "/subscriptions/A51A94C7-EE9C-48B6-8880-E0C4C1452650/resourceGroups/rg-ops-guardrails/providers/microsoft.insights/actionGroups/ag-budget-alerts",
+  "itsmReceivers": [],
+  "location": "Global",
+  "logicAppReceivers": [],
+  "name": "ag-budget-alerts",
+  "resourceGroup": "rg-ops-guardrails",
+  "smsReceivers": [],
+  "type": "Microsoft.Insights/ActionGroups",
+  "voiceReceivers": [],
+  "webhookReceivers": []
+}

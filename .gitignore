@@ -1,0 +1,8 @@
+﻿# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# secrets
+*.env
+.env*
