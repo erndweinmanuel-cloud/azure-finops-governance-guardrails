@@ -5,12 +5,34 @@ AA_NAME="aa-ops-guardrails"
 RUNBOOK_NAME="rb-stop-tagged-vms"
 SCHEDULE_NAME="sched-stop-vms-0200"
 
-az automation job-schedule list -g "$RG_OPS" -a "$AA_NAME" -o tsv --query "[?runbook.name=='$RUNBOOK_NAME' && schedule.name=='$SCHEDULE_NAME'].jobScheduleId" | while read -r id; do
-  [ -z "$id" ] || az automation job-schedule delete -g "$RG_OPS" -a "$AA_NAME" --job-schedule-id "$id" -o none
-done
+SUB_ID=$(az account show --query id -o tsv)
 
-az automation schedule delete -g "$RG_OPS" -a "$AA_NAME" -n "$SCHEDULE_NAME" -y -o none || true
-az automation runbook delete -g "$RG_OPS" -a "$AA_NAME" -n "$RUNBOOK_NAME" -y -o none || true
-az automation account delete -g "$RG_OPS" -n "$AA_NAME" -y -o none || true
+JOB_SCHEDULE_KEY="${RUNBOOK_NAME}|${SCHEDULE_NAME}"
+JOB_SCHEDULE_ID=$(python3 - <<'PY'
+import os, uuid
+print(uuid.uuid5(uuid.NAMESPACE_URL, os.environ["JOB_SCHEDULE_KEY"]))
+PY
+)
+
+az rest --method delete \
+  --url "https://management.azure.com/subscriptions/$SUB_ID/resourceGroups/$RG_OPS/providers/Microsoft.Automation/automationAccounts/$AA_NAME/jobSchedules/$JOB_SCHEDULE_ID?api-version=2024-10-23" \
+  -o none || true
+
+az automation schedule delete \
+  --resource-group "$RG_OPS" \
+  --automation-account-name "$AA_NAME" \
+  --name "$SCHEDULE_NAME" \
+  -y -o none || true
+
+az automation runbook delete \
+  --resource-group "$RG_OPS" \
+  --automation-account-name "$AA_NAME" \
+  --name "$RUNBOOK_NAME" \
+  -y -o none || true
+
+az automation account delete \
+  --resource-group "$RG_OPS" \
+  --name "$AA_NAME" \
+  -y -o none || true
 
 echo "OK"
