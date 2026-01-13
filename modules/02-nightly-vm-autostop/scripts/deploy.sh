@@ -12,7 +12,8 @@ RUNBOOK_FILE="../infra/stop-tagged-vms.ps1"
 
 az group create -n "$RG_OPS" -l "$LOC" -o none
 
-az automation account create -g "$RG_OPS" -n "$AA_NAME" -l "$LOC" --assign-identity -o none
+az automation account create -g "$RG_OPS" -n "$AA_NAME" -l "$LOC" -o none
+az automation account identity assign -g "$RG_OPS" -n "$AA_NAME" -o none
 
 SUB_ID=$(az account show --query id -o tsv)
 PRINCIPAL_ID=$(az automation account show -g "$RG_OPS" -n "$AA_NAME" --query identity.principalId -o tsv)
