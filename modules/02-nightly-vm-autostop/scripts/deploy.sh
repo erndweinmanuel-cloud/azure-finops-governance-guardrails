@@ -77,11 +77,9 @@ az automation schedule create \
     -o none
 
 JOB_SCHEDULE_KEY="${RUNBOOK_NAME}|${SCHEDULE_NAME}"
-JOB_SCHEDULE_ID=$(python3 - <<'PY'
-import os, uuid
-print(uuid.uuid5(uuid.NAMESPACE_URL, os.environ["JOB_SCHEDULE_KEY"]))
-PY
-)
+JOB_SCHEDULE_ID=$(python3 -c 'import uuid,sys; print(uuid.uuid5(uuid.NAMESPACE_URL, sys.argv[1]))' "$JOB_SCHEDULE_KEY")
+
+
 
 BODY=$(cat <<JSON
 {
