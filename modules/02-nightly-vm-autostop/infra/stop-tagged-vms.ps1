@@ -10,8 +10,15 @@ $ctx = Get-AzContext
 Write-Output ("Connected. Subscription: {0}" -f $ctx.Subscription.Id)
 
 $vms = Get-AzVM -Status
+
 $targets = $vms | Where-Object {
-    $_.Tags -and $_.Tags.ContainsKey($TagName) -and $_.Tags[$TagName] -eq $TagValue
+    $_.Tags -and (
+        $_.Tags.GetEnumerator() |
+        Where-Object {
+            $_.Key.Trim() -ieq $TagName -and ("" + $_.Value).Trim() -eq $TagValue
+        } |
+        Select-Object -First 1
+    )
 }
 
 Write-Output ("Found {0} VM(s) with tag {1}={2}" -f $targets.Count, $TagName, $TagValue)

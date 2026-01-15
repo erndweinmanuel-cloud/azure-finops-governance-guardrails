@@ -1,0 +1,19 @@
+{
+  "value": [
+    {
+      "id": "/subscriptions/a51a94c7-ee9c-48b6-8880-e0c4c1452650/resourceGroups/rg-ops-guardrails/providers/Microsoft.Automation/automationAccounts/aa-ops-guardrails/jobSchedules/d72792a6-c850-49a0-848b-08bc310fe9ea",
+      "properties": {
+        "jobScheduleId": "d72792a6-c850-49a0-848b-08bc310fe9ea",
+        "parameters": null,
+        "runOn": null,
+        "runbook": {
+          "name": "rb-stop-tagged-vms"
+        },
+        "schedule": {
+          "name": "sched-stop-vms-0200"
+        }
+      },
+      "type": "Microsoft.Automation/AutomationAccounts/JobSchedules"
+    }
+  ]
+}
