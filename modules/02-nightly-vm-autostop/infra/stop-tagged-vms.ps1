@@ -24,10 +24,13 @@ $targets = $vms | Where-Object {
 Write-Output ("Found {0} VM(s) with tag {1}={2}" -f $targets.Count, $TagName, $TagValue)
 
 foreach ($vm in $targets) {
-    $state = ($vm.Statuses | Where-Object { $_.Code -like "PowerState/*" } | Select-Object -ExpandProperty DisplayStatus -First 1)
+    $vmStatus = Get-AzVM -ResourceGroupName $vm.ResourceGroupName -Name $vm.Name -Status
+    $power    = ($vmStatus.Statuses | Where-Object { $_.Code -like "PowerState/*" } | Select-Object -First 1)
+    $state    = $power.Code
+
     Write-Output ("VM {0}/{1} state: {2}" -f $vm.ResourceGroupName, $vm.Name, $state)
 
-    if ($state -eq "VM running") {
+    if ($state -eq "PowerState/running") {
         Write-Output ("Deallocating VM {0}/{1}..." -f $vm.ResourceGroupName, $vm.Name)
         Stop-AzVM -ResourceGroupName $vm.ResourceGroupName -Name $vm.Name -Force | Out-Null
         Write-Output ("Deallocated VM {0}/{1}" -f $vm.ResourceGroupName, $vm.Name)
