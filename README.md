@@ -14,7 +14,7 @@ This repo is organized as **modules**. Each module is a standalone mini-project 
 
 ## Modules
 1. **01 — Budget + Action Group (Alerts)** ✅
-2. **02 — Nightly VM Auto-Stop (Automation + Managed Identity)** *(next)*
+2. **02 — Nightly VM Auto-Stop (Automation + Managed Identity)** ✅
 3. **03 — Policy Baseline (Landing Zone-ready)** *(later)*
 
 ## Design principles
