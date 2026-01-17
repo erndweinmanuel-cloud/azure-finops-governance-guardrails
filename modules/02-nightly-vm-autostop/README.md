@@ -45,38 +45,57 @@ Key logic:
 ---
 
 ## Proof artifacts
-Folders:
-- `proofs/cli/` — jsonc proof outputs (CLI evidence)
-- `proofs/screenshots/` — screenshots (terminal + portal)
+## Proof run (latest clean manual run)
 
-This repo contains a **clean manual proof run** showing:
-- VM is running + tagged BEFORE
-- Runbook runs and logs “Deallocating … / Deallocated …”
-- VM is deallocated AFTER
+This section links the **exact artifacts** of the latest clean proof run:
+- CLI outputs (`proofs/cli/*.jsonc`)
+- Screenshots (`proofs/screenshots/*.png`)
 
-### CLI proof files (latest clean manual run)
-- `01_rg_show.jsonc`
-- `02_vm_show_before.jsonc`
-- `03_vm_started_verify.jsonc`
-- `04_tag_set.jsonc`
-- `05_vm_before_running_tagged.jsonc`
-- `07_job.<JOB_ID>.jsonc`
-- `08_jobstreams.<JOB_ID>.jsonc`
-- `09_vm_after.<JOB_ID>.jsonc`
+> Tip: In GitHub you can click the links. Images render inline.
 
-### Screenshot naming (recommended)
-Store screenshots in: `proofs/screenshots/`
+### Evidence map (Step → CLI proof → Screenshot)
 
-Suggested names:
-- `01_rg_show.png`
-- `02_vm_show_before.png`
-- `03_vm_started_verify.png`
-- `04_tag_set.png`
-- `05_vm_before_running_tagged.png`
-- `06_runbook_start_jobid.png`
-- `07_job_show.png`
-- `08_jobstreams_ok.png`
-- `09_portal_vm_deallocated.png`
+| Step | What you prove | CLI proof | Screenshot |
+|---:|---|---|---|
+| 1 | Proof RG exists | [`proofs/cli/01_rg_show.jsonc`](./proofs/cli/01_rg_show.jsonc) | [`proofs/screenshots/01_rg_show.png`](./proofs/screenshots/01_rg_show.png) |
+| 2 | VM BEFORE (state) | [`proofs/cli/02_vm_show_before.jsonc`](./proofs/cli/02_vm_show_before.jsonc) | *(optional / if you captured it)* |
+| 3 | VM started (command executed) | [`proofs/cli/03_vm_start.jsonc`](./proofs/cli/03_vm_start.jsonc) | [`proofs/screenshots/02_vm_start.png`](./proofs/screenshots/02_vm_start.png) |
+| 4 | Tag set (`AutoStop=0200`) | [`proofs/cli/04_tag_set.jsonc`](./proofs/cli/04_tag_set.jsonc) | [`proofs/screenshots/03_tag_set.png`](./proofs/screenshots/03_tag_set.png) |
+| 5 | BEFORE (running + tagged) | [`proofs/cli/05_vm_before_running_tagged.jsonc`](./proofs/cli/05_vm_before_running_tagged.jsonc) | [`proofs/screenshots/04_vm_before_running_tagged.png`](./proofs/screenshots/04_vm_before_running_tagged.png) |
+| 6 | Runbook started (job id) | [`proofs/cli/07_job.<JOB_ID>.jsonc`](./proofs/cli/) | [`proofs/screenshots/05_runbook_start_jobid.png`](./proofs/screenshots/05_runbook_start_jobid.png) |
+| 7 | Job status (Running/Completed) | [`proofs/cli/07_job.<JOB_ID>.jsonc`](./proofs/cli/) | [`proofs/screenshots/06_job_show.png`](./proofs/screenshots/06_job_show.png) |
+| 8 | Streams show deallocate happened | [`proofs/cli/08_jobstreams.<JOB_ID>.jsonc`](./proofs/cli/) | [`proofs/screenshots/07_jobstreams_ok.png`](./proofs/screenshots/07_jobstreams_ok.png) |
+| 9 | AFTER (VM deallocated) | [`proofs/cli/09_vm_after.<JOB_ID>.jsonc`](./proofs/cli/) | [`proofs/screenshots/08_vm_after_deallocated.png`](./proofs/screenshots/08_vm_after_deallocated.png) |
+| 10 | Portal confirmation | — | [`proofs/screenshots/09_portal_vm_deallocated.png`](./proofs/screenshots/09_portal_vm_deallocated.png) |
+
+### Screenshots (inline)
+
+#### 01 — Proof RG
+![01_rg_show](./proofs/screenshots/01_rg_show.png)
+
+#### 02 — Start VM
+![02_vm_start](./proofs/screenshots/02_vm_start.png)
+
+#### 03 — Set tag AutoStop=0200
+![03_tag_set](./proofs/screenshots/03_tag_set.png)
+
+#### 04 — Verify BEFORE (running + tagged)
+![04_vm_before_running_tagged](./proofs/screenshots/04_vm_before_running_tagged.png)
+
+#### 05 — Runbook start (job id)
+![05_runbook_start_jobid](./proofs/screenshots/05_runbook_start_jobid.png)
+
+#### 06 — Job show
+![06_job_show](./proofs/screenshots/06_job_show.png)
+
+#### 07 — Job streams OK (deallocate evidence)
+![07_jobstreams_ok](./proofs/screenshots/07_jobstreams_ok.png)
+
+#### 08 — VM AFTER (deallocated)
+![08_vm_after_deallocated](./proofs/screenshots/08_vm_after_deallocated.png)
+
+#### 09 — Portal VM deallocated
+![09_portal_vm_deallocated](./proofs/screenshots/09_portal_vm_deallocated.png)
 
 ---
 
@@ -110,22 +129,16 @@ az vm show -g "$RG_VM" -n "$VM_NAME" -d \
   -o jsonc | tee proofs/cli/02_vm_show_before.jsonc
 ```
 
-### Step 3 — Start VM + verify started (proof)
-Note: `az vm start` often returns no JSON output. We prove state with the next command.
+### Step 3 — Start VM (proof file may be empty)
 ```bash
-az vm start -g "$RG_VM" -n "$VM_NAME" -o none
-
-az vm show -g "$RG_VM" -n "$VM_NAME" -d \
-  --query "{name:name, power:powerState}" \
-  -o jsonc | tee proofs/cli/03_vm_started_verify.jsonc
+az vm start -g "$RG_VM" -n "$VM_NAME" -o jsonc | tee proofs/cli/03_vm_start.jsonc
 ```
 
-### Step 4 — Set tag AutoStop=0200 (robust via resource-id)
+### Step 4 — Set tag AutoStop=0200
 ```bash
-VM_ID=$(az vm show -g "$RG_VM" -n "$VM_NAME" --query id -o tsv)
-
-az tag create --resource-id "$VM_ID" --tags AutoStop=0200 -o jsonc \
-  | tee proofs/cli/04_tag_set.jsonc
+az resource tag -g "$RG_VM" -n "$VM_NAME" \
+  --resource-type "Microsoft.Compute/virtualMachines" \
+  --tags AutoStop=0200 -o jsonc | tee proofs/cli/04_tag_set.jsonc
 ```
 
 ### Step 5 — Verify BEFORE (running + tagged)
@@ -141,24 +154,13 @@ JOB_ID=$(az automation runbook start -g "$RG_OPS" --automation-account-name "$AA
 echo "$JOB_ID"
 ```
 
-### Step 7 — Wait for job completion + save job metadata
-```bash
-while true; do
-  STATUS=$(az automation job show -g "$RG_OPS" --automation-account-name "$AA_NAME" -n "$JOB_ID" --query status -o tsv)
-  echo "Job status: $STATUS"
-  [[ "$STATUS" == "Completed" || "$STATUS" == "Failed" || "$STATUS" == "Stopped" ]] && break
-  sleep 5
-done
-```
-
+### Step 7 — Save job metadata
 ```bash
 az automation job show -g "$RG_OPS" --automation-account-name "$AA_NAME" -n "$JOB_ID" -o jsonc \
   | tee "proofs/cli/07_job.$JOB_ID.jsonc" >/dev/null
 ```
 
 ### Step 8 — Save job streams (REST is most reliable)
-Azure CLI automation is experimental; job streams are most reliable via `az rest`.
-
 ```bash
 SUB_ID=$(az account show --query id -o tsv)
 
@@ -185,15 +187,9 @@ az vm show -g "$RG_VM" -n "$VM_NAME" -d \
   -o jsonc | tee "proofs/cli/09_vm_after.$JOB_ID.jsonc"
 ```
 
-Expected:
-- BEFORE: VM running
-- Streams: PowerState/running → Deallocating → Deallocated
-- AFTER: VM deallocated
-
 ---
 
 ## Lessons learned / pitfalls (real-world)
-
 1) DisplayStatus vs Code mismatch  
 - DisplayStatus: "VM running"  
 - Code: "PowerState/running"  
