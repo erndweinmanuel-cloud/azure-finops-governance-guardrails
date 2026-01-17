@@ -1,0 +1,10 @@
+{
+  "location": "westeurope",
+  "name": "vm-autostop-proof-01",
+  "power": "VM running",
+  "publicIp": "172.201.195.247",
+  "rg": "rg-proof-autostop",
+  "tags": {
+    "AutoStop": "0200"
+  }
+}

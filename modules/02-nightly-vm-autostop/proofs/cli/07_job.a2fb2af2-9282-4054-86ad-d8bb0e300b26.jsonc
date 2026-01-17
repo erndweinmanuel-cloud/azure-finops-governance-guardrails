@@ -1,0 +1,22 @@
+{
+  "creationTime": "2026-01-17T10:06:05.500391+00:00",
+  "endTime": null,
+  "exception": "",
+  "id": "/subscriptions/a51a94c7-ee9c-48b6-8880-e0c4c1452650/resourceGroups/rg-ops-guardrails/providers/Microsoft.Automation/automationAccounts/aa-ops-guardrails/jobs/a2fb2af2-9282-4054-86ad-d8bb0e300b26",
+  "jobId": "a2fb2af2-9282-4054-86ad-d8bb0e300b26",
+  "lastModifiedTime": "2026-01-17T10:06:48.381922+00:00",
+  "lastStatusModifiedTime": "2026-01-17T10:06:48.381922+00:00",
+  "name": "6be3da17-fec7-45c2-a5ed-fa1f077df4d5",
+  "parameters": {},
+  "provisioningState": "Processing",
+  "resourceGroup": "rg-ops-guardrails",
+  "runOn": null,
+  "runbook": {
+    "name": "rb-stop-tagged-vms"
+  },
+  "startTime": "2026-01-17T10:06:48.381922+00:00",
+  "startedBy": "{scrubbed}",
+  "status": "Running",
+  "statusDetails": "None",
+  "type": "Microsoft.Automation/AutomationAccounts/Jobs"
+}

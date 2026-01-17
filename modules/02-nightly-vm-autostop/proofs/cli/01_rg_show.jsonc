@@ -1,0 +1,11 @@
+{
+  "id": "/subscriptions/a51a94c7-ee9c-48b6-8880-e0c4c1452650/resourceGroups/rg-proof-autostop",
+  "location": "westeurope",
+  "managedBy": null,
+  "name": "rg-proof-autostop",
+  "properties": {
+    "provisioningState": "Succeeded"
+  },
+  "tags": null,
+  "type": "Microsoft.Resources/resourceGroups"
+}

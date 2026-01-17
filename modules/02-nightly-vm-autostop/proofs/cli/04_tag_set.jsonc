@@ -1,0 +1,87 @@
+{
+  "etag": "\"9\"",
+  "extendedLocation": null,
+  "id": "/subscriptions/a51a94c7-ee9c-48b6-8880-e0c4c1452650/resourceGroups/rg-proof-autostop/providers/Microsoft.Compute/virtualMachines/vm-autostop-proof-01",
+  "identity": null,
+  "kind": null,
+  "location": "westeurope",
+  "managedBy": null,
+  "name": "vm-autostop-proof-01",
+  "plan": null,
+  "properties": {
+    "hardwareProfile": {
+      "vmSize": "Standard_B1s"
+    },
+    "networkProfile": {
+      "networkInterfaces": [
+        {
+          "id": "/subscriptions/a51a94c7-ee9c-48b6-8880-e0c4c1452650/resourceGroups/rg-proof-autostop/providers/Microsoft.Network/networkInterfaces/vm-autostop-proof-01VMNic",
+          "resourceGroup": "rg-proof-autostop"
+        }
+      ]
+    },
+    "osProfile": {
+      "adminUsername": "azureuser",
+      "allowExtensionOperations": true,
+      "computerName": "vm-autostop-proof-01",
+      "linuxConfiguration": {
+        "disablePasswordAuthentication": true,
+        "patchSettings": {
+          "assessmentMode": "ImageDefault",
+          "patchMode": "ImageDefault"
+        },
+        "provisionVMAgent": true,
+        "ssh": {
+          "publicKeys": [
+            {
+              "keyData": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDETXXKXFt/9FRve9hgr08icmZHQTUbPkndu5Yc3jzCDLtnXkNhaX0ViFk+XOJBc4X/eo1gzohqZGAUSrcv9xwxv83ZTLo5/b/mhwdn6AQk22l/HEgjZdAIQOBIK4Xrc/LT9uEI8nu+g8iACqkXjyh2ev9dn//pWW7mOu+jyhOdKp3OxayCSe6Xns0oeQKsLx7hoSEPAEkPDtiFOjEUAFDiqEHgGQuIygDfVpCNLcgG2Pn92tsgLgSc+vxiQsM+qpa1366vBwd+tXBc0DoMGPesAlhYHCGs3Ji63DrtusHr/MxCLzjlwEP66Am4XlgvX1Zov7dlE8y97hVLVqBdJoTX",
+              "path": "/home/azureuser/.ssh/authorized_keys"
+            }
+          ]
+        }
+      },
+      "requireGuestProvisionSignal": true,
+      "secrets": []
+    },
+    "provisioningState": "Succeeded",
+    "securityProfile": {
+      "securityType": "TrustedLaunch",
+      "uefiSettings": {
+        "secureBootEnabled": true,
+        "vTpmEnabled": true
+      }
+    },
+    "storageProfile": {
+      "dataDisks": [],
+      "diskControllerType": "SCSI",
+      "imageReference": {
+        "exactVersion": "22.04.202512181",
+        "offer": "0001-com-ubuntu-server-jammy",
+        "publisher": "Canonical",
+        "sku": "22_04-lts-gen2",
+        "version": "latest"
+      },
+      "osDisk": {
+        "caching": "ReadWrite",
+        "createOption": "FromImage",
+        "deleteOption": "Detach",
+        "diskSizeGB": 30,
+        "managedDisk": {
+          "id": "/subscriptions/a51a94c7-ee9c-48b6-8880-e0c4c1452650/resourceGroups/RG-PROOF-AUTOSTOP/providers/Microsoft.Compute/disks/vm-autostop-proof-01_OsDisk_1_54dc703f52b54a9997f597e4de1af35a",
+          "resourceGroup": "RG-PROOF-AUTOSTOP",
+          "storageAccountType": "Premium_LRS"
+        },
+        "name": "vm-autostop-proof-01_OsDisk_1_54dc703f52b54a9997f597e4de1af35a",
+        "osType": "Linux"
+      }
+    },
+    "timeCreated": "2026-01-16T13:49:21.0214439+00:00",
+    "vmId": "39dfb195-f71e-43f3-91db-02b0048c21d2"
+  },
+  "resourceGroup": "rg-proof-autostop",
+  "sku": null,
+  "tags": {
+    "AutoStop": "0200"
+  },
+  "type": "Microsoft.Compute/virtualMachines"
+}

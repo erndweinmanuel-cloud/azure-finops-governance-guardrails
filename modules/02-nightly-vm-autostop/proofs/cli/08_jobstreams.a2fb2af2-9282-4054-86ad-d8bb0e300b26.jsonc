@@ -1,0 +1,58 @@
+{
+  "value": [
+    {
+      "id": "/subscriptions/a51a94c7-ee9c-48b6-8880-e0c4c1452650/resourceGroups/rg-ops-guardrails/providers/Microsoft.Automation/automationAccounts/aa-ops-guardrails/jobs/a2fb2af2-9282-4054-86ad-d8bb0e300b26/streams/a2fb2af2-9282-4054-86ad-d8bb0e300b26_00639042412266953700_00000000000000000001",
+      "properties": {
+        "jobStreamId": "a2fb2af2-9282-4054-86ad-d8bb0e300b26_00639042412266953700_00000000000000000001",
+        "streamType": "Warning",
+        "summary": "You're using Az.Accounts version 2.15.0. The latest version of Az.Accounts is 5.3.2. Upgrade your Az modules using the following commands:\r\n  Update-PSResource Az.* -WhatIf    -- Simulate updating your Az modules.\r\n  Update-PSResource Az.*            -- Update your Az modules.",
+        "time": "2026-01-17T10:07:06.69537+00:00"
+      }
+    },
+    {
+      "id": "/subscriptions/a51a94c7-ee9c-48b6-8880-e0c4c1452650/resourceGroups/rg-ops-guardrails/providers/Microsoft.Automation/automationAccounts/aa-ops-guardrails/jobs/a2fb2af2-9282-4054-86ad-d8bb0e300b26/streams/a2fb2af2-9282-4054-86ad-d8bb0e300b26_00639042412268672049_00000000000000000002",
+      "properties": {
+        "jobStreamId": "a2fb2af2-9282-4054-86ad-d8bb0e300b26_00639042412268672049_00000000000000000002",
+        "streamType": "Output",
+        "summary": "Connected. Subscription: a51a94c7-ee9c-48b6-8880-e0c4c1452650",
+        "time": "2026-01-17T10:07:06.8672049+00:00"
+      }
+    },
+    {
+      "id": "/subscriptions/a51a94c7-ee9c-48b6-8880-e0c4c1452650/resourceGroups/rg-ops-guardrails/providers/Microsoft.Automation/automationAccounts/aa-ops-guardrails/jobs/a2fb2af2-9282-4054-86ad-d8bb0e300b26/streams/a2fb2af2-9282-4054-86ad-d8bb0e300b26_00639042412303776570_00000000000000000003",
+      "properties": {
+        "jobStreamId": "a2fb2af2-9282-4054-86ad-d8bb0e300b26_00639042412303776570_00000000000000000003",
+        "streamType": "Output",
+        "summary": "Found 1 VM(s) with tag AutoStop=0200",
+        "time": "2026-01-17T10:07:10.377657+00:00"
+      }
+    },
+    {
+      "id": "/subscriptions/a51a94c7-ee9c-48b6-8880-e0c4c1452650/resourceGroups/rg-ops-guardrails/providers/Microsoft.Automation/automationAccounts/aa-ops-guardrails/jobs/a2fb2af2-9282-4054-86ad-d8bb0e300b26/streams/a2fb2af2-9282-4054-86ad-d8bb0e300b26_00639042412308673546_00000000000000000004",
+      "properties": {
+        "jobStreamId": "a2fb2af2-9282-4054-86ad-d8bb0e300b26_00639042412308673546_00000000000000000004",
+        "streamType": "Output",
+        "summary": "VM RG-PROOF-AUTOSTOP/vm-autostop-proof-01 state: PowerState/running",
+        "time": "2026-01-17T10:07:10.8673546+00:00"
+      }
+    },
+    {
+      "id": "/subscriptions/a51a94c7-ee9c-48b6-8880-e0c4c1452650/resourceGroups/rg-ops-guardrails/providers/Microsoft.Automation/automationAccounts/aa-ops-guardrails/jobs/a2fb2af2-9282-4054-86ad-d8bb0e300b26/streams/a2fb2af2-9282-4054-86ad-d8bb0e300b26_00639042412309452438_00000000000000000005",
+      "properties": {
+        "jobStreamId": "a2fb2af2-9282-4054-86ad-d8bb0e300b26_00639042412309452438_00000000000000000005",
+        "streamType": "Output",
+        "summary": "Deallocating VM RG-PROOF-AUTOSTOP/vm-autostop-proof-01...",
+        "time": "2026-01-17T10:07:10.9452438+00:00"
+      }
+    },
+    {
+      "id": "/subscriptions/a51a94c7-ee9c-48b6-8880-e0c4c1452650/resourceGroups/rg-ops-guardrails/providers/Microsoft.Automation/automationAccounts/aa-ops-guardrails/jobs/a2fb2af2-9282-4054-86ad-d8bb0e300b26/streams/a2fb2af2-9282-4054-86ad-d8bb0e300b26_00639042412722864999_00000000000000000006",
+      "properties": {
+        "jobStreamId": "a2fb2af2-9282-4054-86ad-d8bb0e300b26_00639042412722864999_00000000000000000006",
+        "streamType": "Output",
+        "summary": "Deallocated VM RG-PROOF-AUTOSTOP/vm-autostop-proof-01",
+        "time": "2026-01-17T10:07:52.2864999+00:00"
+      }
+    }
+  ]
+}

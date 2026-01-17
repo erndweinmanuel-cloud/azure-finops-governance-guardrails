@@ -1,0 +1,7 @@
+{
+  "name": "vm-autostop-proof-01",
+  "power": "VM deallocated",
+  "tags": {
+    "AutoStop": "0200"
+  }
+}
