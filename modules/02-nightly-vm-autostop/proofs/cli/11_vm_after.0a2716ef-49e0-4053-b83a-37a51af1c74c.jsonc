@@ -1,8 +1,0 @@
-{
-  "name": "vm-autostop-proof-01",
-  "power": "VM running",
-  "rg": "rg-proof-autostop",
-  "tags": {
-    "AutoStop": "0200"
-  }
-}
