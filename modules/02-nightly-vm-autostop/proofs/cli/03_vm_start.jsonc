@@ -1,1 +1,3 @@
-•	“03_vm_start.jsonc may be empty; use 03_vm_started_verify.jsonc for proof.”
+// NOTE: az vm start often returns no JSON output.
+// This file may be empty in many runs.
+// Use 03_vm_started_verify.jsonc as the real proof that the VM is running.
