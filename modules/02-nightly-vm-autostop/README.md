@@ -206,4 +206,18 @@ az vm show -g "$RG_VM" -n "$VM_NAME" -d \
 4) JobSchedule conflicts during deployment  
 - Conflict: A jobSchedule with same id already exists.  
 - Meaning: deploy tries to create a schedule that already exists  
-- Fix: cleanup old schedules or ensure deploy generates/looks up IDs safely
+- Fix: cleanup old schedules or ensure deploy generates/looks up IDs safely     
+```
+---
+
+## Security note (RBAC scope)
+For this learning module, the Automation Account’s managed identity is granted **Virtual Machine Contributor**
+at **subscription scope** to keep the setup simple and reproducible.
+
+In production (especially regulated / FinTech environments), this scope is **too broad**.
+Preferred approach:
+- restrict scope to a dedicated RG/subscription for workloads, and/or
+- use a **custom role** with least privilege (only the actions needed to **read VM state + deallocate** tagged VMs).
+
+
+
