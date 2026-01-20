@@ -1,4 +1,4 @@
-# Module 02 — Nightly VM Auto-Stop (Tag-Based Guardrail)
+﻿# Module 02 — Nightly VM Auto-Stop (Tag-Based Guardrail)
 
 This module automatically **deallocates** Azure VMs based on a tag.
 Goal: a practical FinOps/Governance guardrail with clean, reproducible proof artifacts.
@@ -62,10 +62,10 @@ This section links the **exact artifacts** of the latest clean proof run:
 | 3 | VM started (command executed) | [`proofs/cli/03_vm_start.jsonc`](./proofs/cli/03_vm_start.jsonc) | [`proofs/screenshots/02_vm_start.png`](./proofs/screenshots/02_vm_start.png) |
 | 4 | Tag set (`AutoStop=0200`) | [`proofs/cli/04_tag_set.jsonc`](./proofs/cli/04_tag_set.jsonc) | [`proofs/screenshots/03_tag_set.png`](./proofs/screenshots/03_tag_set.png) |
 | 5 | BEFORE (running + tagged) | [`proofs/cli/05_vm_before_running_tagged.jsonc`](./proofs/cli/05_vm_before_running_tagged.jsonc) | [`proofs/screenshots/04_vm_before_running_tagged.png`](./proofs/screenshots/04_vm_before_running_tagged.png) |
-| 6 | Runbook started (job id) | [`proofs/cli/07_job.<JOB_ID>.jsonc`](./proofs/cli/) | [`proofs/screenshots/05_runbook_start_jobid.png`](./proofs/screenshots/05_runbook_start_jobid.png) |
-| 7 | Job status (Running/Completed) | [`proofs/cli/07_job.<JOB_ID>.jsonc`](./proofs/cli/) | [`proofs/screenshots/06_job_show.png`](./proofs/screenshots/06_job_show.png) |
-| 8 | Streams show deallocate happened | [`proofs/cli/08_jobstreams.<JOB_ID>.jsonc`](./proofs/cli/) | [`proofs/screenshots/07_jobstreams_ok.png`](./proofs/screenshots/07_jobstreams_ok.png) |
-| 9 | AFTER (VM deallocated) | [`proofs/cli/09_vm_after.<JOB_ID>.jsonc`](./proofs/cli/) | [`proofs/screenshots/08_vm_after_deallocated.png`](./proofs/screenshots/08_vm_after_deallocated.png) |
+| 6 | Runbook started (job id) | [proofs/cli/07_job.a2fb2af2-9282-4054-86ad-d8bb0e300b26.jsonc](./proofs/cli/07_job.a2fb2af2-9282-4054-86ad-d8bb0e300b26.jsonc) | [`proofs/screenshots/05_runbook_start_jobid.png`](./proofs/screenshots/05_runbook_start_jobid.png) |
+| 7 | Job status (Running/Completed) | [proofs/cli/07_job.a2fb2af2-9282-4054-86ad-d8bb0e300b26.jsonc](./proofs/cli/07_job.a2fb2af2-9282-4054-86ad-d8bb0e300b26.jsonc) | [`proofs/screenshots/06_job_show.png`](./proofs/screenshots/06_job_show.png) |
+| 8 | Streams show deallocate happened | [proofs/cli/08_jobstreams.a2fb2af2-9282-4054-86ad-d8bb0e300b26.jsonc](./proofs/cli/08_jobstreams.a2fb2af2-9282-4054-86ad-d8bb0e300b26.jsonc) | [`proofs/screenshots/07_jobstreams_ok.png`](./proofs/screenshots/07_jobstreams_ok.png) |
+| 9 | AFTER (VM deallocated) | [proofs/cli/09_vm_after.a2fb2af2-9282-4054-86ad-d8bb0e300b26.jsonc](./proofs/cli/09_vm_after.a2fb2af2-9282-4054-86ad-d8bb0e300b26.jsonc) | [`proofs/screenshots/08_vm_after_deallocated.png`](./proofs/screenshots/08_vm_after_deallocated.png) |
 | 10 | Portal confirmation | — | [`proofs/screenshots/09_portal_vm_deallocated.png`](./proofs/screenshots/09_portal_vm_deallocated.png) |
 
 ### Screenshots (inline)
