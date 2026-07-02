@@ -202,7 +202,7 @@ find_job_schedule() {
   az_no_pathconv rest \
     --method get \
     --url "$JOB_SCHEDULE_LIST_URL" \
-    --query "value[?properties.runbook.name=='$RUNBOOK_NAME' && properties.schedule.name=='$SCHEDULE_NAME'].name | [0]" \
+    --query "value[?properties.runbook.name=='$RUNBOOK_NAME' && properties.schedule.name=='$SCHEDULE_NAME'].properties.jobScheduleId | [0]" \
     -o tsv 2>/dev/null || true
 }
 
