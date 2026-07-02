@@ -1,0 +1,16 @@
+{
+  "Name": "FinOps VM AutoStop Operator",
+  "IsCustom": true,
+  "Description": "Least-privilege role for the FinOps AutoStop Automation Runbook. Allows reading VM metadata and runtime status and deallocating VMs in the dedicated FinOps lab resource group.",
+  "Actions": [
+    "Microsoft.Compute/virtualMachines/read",
+    "Microsoft.Compute/virtualMachines/instanceView/read",
+    "Microsoft.Compute/virtualMachines/deallocate/action"
+  ],
+  "NotActions": [],
+  "DataActions": [],
+  "NotDataActions": [],
+  "AssignableScopes": [
+    "__LAB_SCOPE__"
+  ]
+}

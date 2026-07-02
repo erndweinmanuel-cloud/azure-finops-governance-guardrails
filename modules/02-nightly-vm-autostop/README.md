@@ -1,223 +1,218 @@
-﻿# Module 02 — Nightly VM Auto-Stop (Tag-Based Guardrail)
+﻿# Module 02 — Nightly VM Auto-Stop
 
-This module automatically **deallocates** Azure VMs based on a tag.
-Goal: a practical FinOps/Governance guardrail with clean, reproducible proof artifacts.
+## Tag-Based FinOps Guardrail with Least-Privilege RBAC
 
----
+This module automatically deallocates Azure virtual machines based on a tag.
 
-## What it does
-- Finds VMs with tag **`AutoStop=0200`**
-- Determines power state reliably via **PowerState CODE**
-- Deallocates VMs that are currently running
-
-Why this matters:
-- `DisplayStatus` can be `"VM running"`
-- `Code` is `"PowerState/running"`
-Comparing the wrong one can cause the runbook to **skip** a running VM.
+The goal is not only to build a working cost-control automation, but to evolve it into a reproducible and auditable governance control using Managed Identity, scoped RBAC, and proof-based validation.
 
 ---
 
-## Components (names used in this repo)
-**Ops / Automation**
-- Resource Group: `rg-ops-guardrails`
-- Automation Account: `aa-ops-guardrails`
-- Runbook: `rb-stop-tagged-vms`
-- Auth: Managed Identity (`Connect-AzAccount -Identity`)
+## What It Does
 
-**Proof VM**
-- Proof RG: `rg-proof-autostop`
-- Proof VM: `vm-autostop-proof-01`
-- Tag used: `AutoStop=0200`
+The guardrail:
 
----
+* searches only within the dedicated target resource group `rg-finops-lab`
+* identifies VMs with the tag `AutoStop=0200`
+* checks the actual runtime state through `PowerState/*`
+* deallocates only VMs that are currently running
+* authenticates through a system-assigned Managed Identity
+* uses a custom Azure RBAC role instead of a broad built-in role
+* limits permissions to Resource Group scope
 
-## Runbook Script
-File: `infra/stop-tagged-vms.ps1`
-
-Key logic:
-- `Get-AzVM -Status` to list VMs
-- Filter by tag `AutoStop=0200`
-- Refresh per-VM status via `Get-AzVM ... -Status`
-- Extract `PowerState/*` from `.Statuses[].Code`
-- Compare against `PowerState/running`
-- Stop (deallocate) via `Stop-AzVM ... -Force`
+A deallocated VM no longer consumes VM compute resources. Managed disks and other attached resources remain available until they are deleted separately.
 
 ---
 
-## Proof artifacts
-## Proof run (latest clean manual run)
+## Architecture
 
-This section links the **exact artifacts** of the latest clean proof run:
-- CLI outputs (`proofs/cli/*.jsonc`)
-- Screenshots (`proofs/screenshots/*.png`)
-
-> Tip: In GitHub you can click the links. Images render inline.
-
-### Evidence map (Step → CLI proof → Screenshot)
-
-| Step | What you prove | CLI proof | Screenshot |
-|---:|---|---|---|
-| 1 | Proof RG exists | [`proofs/cli/01_rg_show.jsonc`](./proofs/cli/01_rg_show.jsonc) | [`proofs/screenshots/01_rg_show.png`](./proofs/screenshots/01_rg_show.png) |
-| 2 | VM BEFORE (state) | [`proofs/cli/02_vm_show_before.jsonc`](./proofs/cli/02_vm_show_before.jsonc) | *(optional / if you captured it)* |
-| 3 | VM started (command executed) | [`proofs/cli/03_vm_start.jsonc`](./proofs/cli/03_vm_start.jsonc) | [`proofs/screenshots/02_vm_start.png`](./proofs/screenshots/02_vm_start.png) |
-| 4 | Tag set (`AutoStop=0200`) | [`proofs/cli/04_tag_set.jsonc`](./proofs/cli/04_tag_set.jsonc) | [`proofs/screenshots/03_tag_set.png`](./proofs/screenshots/03_tag_set.png) |
-| 5 | BEFORE (running + tagged) | [`proofs/cli/05_vm_before_running_tagged.jsonc`](./proofs/cli/05_vm_before_running_tagged.jsonc) | [`proofs/screenshots/04_vm_before_running_tagged.png`](./proofs/screenshots/04_vm_before_running_tagged.png) |
-| 6 | Runbook started (job id) | [proofs/cli/07_job.a2fb2af2-9282-4054-86ad-d8bb0e300b26.jsonc](./proofs/cli/07_job.a2fb2af2-9282-4054-86ad-d8bb0e300b26.jsonc) | [`proofs/screenshots/05_runbook_start_jobid.png`](./proofs/screenshots/05_runbook_start_jobid.png) |
-| 7 | Job status (Running/Completed) | [proofs/cli/07_job.a2fb2af2-9282-4054-86ad-d8bb0e300b26.jsonc](./proofs/cli/07_job.a2fb2af2-9282-4054-86ad-d8bb0e300b26.jsonc) | [`proofs/screenshots/06_job_show.png`](./proofs/screenshots/06_job_show.png) |
-| 8 | Streams show deallocate happened | [proofs/cli/08_jobstreams.a2fb2af2-9282-4054-86ad-d8bb0e300b26.jsonc](./proofs/cli/08_jobstreams.a2fb2af2-9282-4054-86ad-d8bb0e300b26.jsonc) | [`proofs/screenshots/07_jobstreams_ok.png`](./proofs/screenshots/07_jobstreams_ok.png) |
-| 9 | AFTER (VM deallocated) | [proofs/cli/09_vm_after.a2fb2af2-9282-4054-86ad-d8bb0e300b26.jsonc](./proofs/cli/09_vm_after.a2fb2af2-9282-4054-86ad-d8bb0e300b26.jsonc) | [`proofs/screenshots/08_vm_after_deallocated.png`](./proofs/screenshots/08_vm_after_deallocated.png) |
-| 10 | Portal confirmation | — | [`proofs/screenshots/09_portal_vm_deallocated.png`](./proofs/screenshots/09_portal_vm_deallocated.png) |
-
-### Screenshots (inline)
-
-#### 01 — Proof RG
-![01_rg_show](./proofs/screenshots/01_rg_show.png)
-
-#### 02 — Start VM
-![02_vm_start](./proofs/screenshots/02_vm_start.png)
-
-#### 03 — Set tag AutoStop=0200
-![03_tag_set](./proofs/screenshots/03_tag_set.png)
-
-#### 04 — Verify BEFORE (running + tagged)
-![04_vm_before_running_tagged](./proofs/screenshots/04_vm_before_running_tagged.png)
-
-#### 05 — Runbook start (job id)
-![05_runbook_start_jobid](./proofs/screenshots/05_runbook_start_jobid.png)
-
-#### 06 — Job show
-![06_job_show](./proofs/screenshots/06_job_show.png)
-
-#### 07 — Job streams OK (deallocate evidence)
-![07_jobstreams_ok](./proofs/screenshots/07_jobstreams_ok.png)
-
-#### 08 — VM AFTER (deallocated)
-![08_vm_after_deallocated](./proofs/screenshots/08_vm_after_deallocated.png)
-
-#### 09 — Portal VM deallocated
-![09_portal_vm_deallocated](./proofs/screenshots/09_portal_vm_deallocated.png)
-
----
-
-## Manual proof run — step-by-step commands
-
-> Run from:
-> `modules/02-nightly-vm-autostop/`
-
-### Step 0 — Set variables
-```bash
-cd ~/azure-finops-governance-guardrails/modules/02-nightly-vm-autostop
-mkdir -p proofs/cli proofs/screenshots
-
-RG_VM="rg-proof-autostop"
-VM_NAME="vm-autostop-proof-01"
-
-RG_OPS="rg-ops-guardrails"
-AA_NAME="aa-ops-guardrails"
-RUNBOOK_NAME="rb-stop-tagged-vms"
-```
-
-### Step 1 — Show proof RG (sanity + proof)
-```bash
-az group show -n "$RG_VM" -o jsonc | tee proofs/cli/01_rg_show.jsonc
-```
-
-### Step 2 — Verify VM BEFORE (capture current state)
-```bash
-az vm show -g "$RG_VM" -n "$VM_NAME" -d \
-  --query "{name:name, rg:resourceGroup, location:location, power:powerState, tags:tags, publicIp:publicIps}" \
-  -o jsonc | tee proofs/cli/02_vm_show_before.jsonc
-```
-
-### Step 3 — Start VM (proof file may be empty)
-```bash
-az vm start -g "$RG_VM" -n "$VM_NAME" -o jsonc | tee proofs/cli/03_vm_start.jsonc
-```
-
-### Step 4 — Set tag AutoStop=0200
-```bash
-az resource tag -g "$RG_VM" -n "$VM_NAME" \
-  --resource-type "Microsoft.Compute/virtualMachines" \
-  --tags AutoStop=0200 -o jsonc | tee proofs/cli/04_tag_set.jsonc
-```
-
-### Step 5 — Verify BEFORE (running + tagged)
-```bash
-az vm show -g "$RG_VM" -n "$VM_NAME" -d \
-  --query "{name:name, rg:resourceGroup, location:location, power:powerState, tags:tags, publicIp:publicIps}" \
-  -o jsonc | tee proofs/cli/05_vm_before_running_tagged.jsonc
-```
-
-### Step 6 — Start runbook (manual trigger)
-```bash
-JOB_ID=$(az automation runbook start -g "$RG_OPS" --automation-account-name "$AA_NAME" -n "$RUNBOOK_NAME" --query jobId -o tsv)
-echo "$JOB_ID"
-```
-
-### Step 7 — Save job metadata
-```bash
-az automation job show -g "$RG_OPS" --automation-account-name "$AA_NAME" -n "$JOB_ID" -o jsonc \
-  | tee "proofs/cli/07_job.$JOB_ID.jsonc" >/dev/null
-```
-
-### Step 8 — Save job streams (REST is most reliable)
-```bash
-SUB_ID=$(az account show --query id -o tsv)
-
-az rest --method get \
-  --url "https://management.azure.com/subscriptions/$SUB_ID/resourceGroups/$RG_OPS/providers/Microsoft.Automation/automationAccounts/$AA_NAME/jobs/$JOB_ID/streams?api-version=2024-10-23" \
-  -o jsonc | tee "proofs/cli/08_jobstreams.$JOB_ID.jsonc" >/dev/null
-```
-
-Optional: extract key log lines
-```bash
-grep -nE "Connected|Found|state:|Dealloc|Deallocated|Skip|Error|Exception" "proofs/cli/08_jobstreams.$JOB_ID.jsonc" | head -n 200
-```
-
-Expected stream sequence:
-- Found 1 VM(s) with tag AutoStop=0200
-- state: PowerState/running
-- Deallocating ...
-- Deallocated ...
-
-### Step 9 — Verify AFTER (deallocated)
-```bash
-az vm show -g "$RG_VM" -n "$VM_NAME" -d \
-  --query "{name:name, power:powerState, tags:tags}" \
-  -o jsonc | tee "proofs/cli/09_vm_after.$JOB_ID.jsonc"
+```mermaid
+flowchart LR
+    S[Daily Schedule<br/>02:00 Europe/Berlin] --> AA[Automation Account<br/>aa-ops-guardrails]
+    AA --> RB[PowerShell Runbook<br/>rb-stop-tagged-vms]
+    RB --> MI[System-Assigned<br/>Managed Identity]
+    MI --> CR[Custom Role<br/>FinOps VM AutoStop Operator]
+    CR --> RG[Resource Group<br/>rg-finops-lab]
+    RG --> VM[Tagged VM<br/>AutoStop=0200]
 ```
 
 ---
 
-## Lessons learned / pitfalls (real-world)
-1) DisplayStatus vs Code mismatch  
-- DisplayStatus: "VM running"  
-- Code: "PowerState/running"  
-- Fix: compare PowerState/* Code  
+## Evolution: From Automation to Governance
 
-2) CLI automation commands are experimental  
-- Warnings are expected  
-- Streams are most reliably collected via `az rest`  
+| Area           | V1 — Scheduled AutoStop              | V1.1 — Custom RBAC Hardening                                   |
+| -------------- | ------------------------------------ | -------------------------------------------------------------- |
+| Trigger        | Daily schedule at 02:00              | Unchanged                                                      |
+| Target scope   | Subscription-wide VM discovery       | Explicitly limited to `rg-finops-lab`                          |
+| Identity       | System-assigned Managed Identity     | Unchanged                                                      |
+| RBAC role      | `Virtual Machine Contributor`        | Custom role: `FinOps VM AutoStop Operator`                     |
+| RBAC scope     | Entire subscription                  | Dedicated Resource Group only                                  |
+| Security model | Functional, but overly broad         | Least privilege with reduced blast radius                      |
+| Validation     | Successful scheduled VM deallocation | Successful deallocation after removing the broad built-in role |
 
-3) API versions can break  
-- Not every api-version works for every endpoint  
-- For job streams, `2024-10-23` was validated in this proof run  
+The V1.1 hardening was validated successfully: after removing the subscription-level `Virtual Machine Contributor` assignment, the runbook still deallocated the tagged VM using only the custom role assigned to `rg-finops-lab`.
 
-4) JobSchedule conflicts during deployment  
-- Conflict: A jobSchedule with same id already exists.  
-- Meaning: deploy tries to create a schedule that already exists  
-- Fix: cleanup old schedules or ensure deploy generates/looks up IDs safely     
-```
 ---
 
-## Security note (RBAC scope)
-For this learning module, the Automation Account’s managed identity is granted **Virtual Machine Contributor**
-at **subscription scope** to keep the setup simple and reproducible.
+## Why a Custom Role?
 
-In production (especially regulated / FinTech environments), this scope is **too broad**.
-Preferred approach:
-- restrict scope to a dedicated RG/subscription for workloads, and/or
-- use a **custom role** with least privilege (only the actions needed to **read VM state + deallocate** tagged VMs).
+Managed Identity removes secrets from code and runbooks. It does not remove the need for least-privilege access.
 
+The initial implementation used the built-in `Virtual Machine Contributor` role at subscription scope. That worked, but it was far broader than necessary for a VM AutoStop use case.
 
+The runbook only requires permission to:
 
+```json
+{
+  "Actions": [
+    "Microsoft.Compute/virtualMachines/read",
+    "Microsoft.Compute/virtualMachines/instanceView/read",
+    "Microsoft.Compute/virtualMachines/deallocate/action"
+  ]
+}
+```
+
+This allows the automation to:
+
+* read VM metadata and tags
+* inspect VM runtime status
+* deallocate running target VMs
+
+It cannot create, resize, reconfigure, delete, or manage VMs across the subscription.
+
+---
+
+## Components
+
+### Control Plane
+
+| Component          | Name                             |
+| ------------------ | -------------------------------- |
+| Resource Group     | `rg-ops-guardrails`              |
+| Automation Account | `aa-ops-guardrails`              |
+| Runbook            | `rb-stop-tagged-vms`             |
+| Schedule           | `sched-stop-vms-0200`            |
+| Authentication     | System-assigned Managed Identity |
+
+### Target Scope
+
+| Component       | Name                                            |
+| --------------- | ----------------------------------------------- |
+| Resource Group  | `rg-finops-lab`                                 |
+| Proof VM        | `vm-finops-autostop-01`                         |
+| Required tag    | `AutoStop=0200`                                 |
+| Additional tags | `Environment=Lab`, `Purpose=FinOpsAutoStopTest` |
+| Public IP       | None                                            |
+
+---
+
+## Runbook Logic
+
+Runbook file: [`infra/stop-tagged-vms.ps1`](./infra/stop-tagged-vms.ps1)
+
+The runbook performs these steps:
+
+1. Authenticates through `Connect-AzAccount -Identity`
+2. Retrieves VMs only from `rg-finops-lab`
+3. Filters VMs by `AutoStop=0200`
+4. Checks the VM runtime status through `Get-AzVM -Status`
+5. Validates `PowerState/running`
+6. Deallocates the VM through `Stop-AzVM -Force`
+
+The script uses the technical status code `PowerState/running` instead of the display value `VM running`.
+
+---
+
+## Repository Structure
+
+```text
+modules/02-nightly-vm-autostop/
+├── infra/
+│   ├── stop-tagged-vms.ps1
+│   └── finops-vm-autostop-role.json
+├── scripts/
+│   ├── deploy.sh
+│   └── cleanup.sh
+├── proofs/
+│   ├── v1-scheduled-autostop/
+│   │   ├── cli/
+│   │   └── screenshots/
+│   └── v1.1-custom-rbac-hardening/
+│       └── screenshots/
+└── README.md
+```
+
+---
+
+## Proof Artifacts
+
+### V1 — Scheduled AutoStop
+
+The initial working implementation, including CLI evidence and screenshots, is available here:
+
+* [`proofs/v1-scheduled-autostop/cli`](./proofs/v1-scheduled-autostop/cli)
+* [`proofs/v1-scheduled-autostop/screenshots`](./proofs/v1-scheduled-autostop/screenshots)
+
+### V1.1 — Custom RBAC Hardening
+
+| Step | What is proven                                                        | Screenshot                                                                                                                 |
+| ---: | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+|    1 | The Managed Identity has only the custom role at Resource Group scope | [`01_custom-role-rg-scope.png`](./proofs/v1.1-custom-rbac-hardening/screenshots/01_custom-role-rg-scope.png)               |
+|    2 | The tagged test VM is running and has no public IP                    | [`02_vm-before-running-tagged.png`](./proofs/v1.1-custom-rbac-hardening/screenshots/02_vm-before-running-tagged.png)       |
+|    3 | The runbook successfully deallocates the VM with the custom role      | [`03_runbook-custom-role-success.png`](./proofs/v1.1-custom-rbac-hardening/screenshots/03_runbook-custom-role-success.png) |
+|    4 | The VM is confirmed as deallocated after the run                      | [`04_vm-after-deallocated.png`](./proofs/v1.1-custom-rbac-hardening/screenshots/04_vm-after-deallocated.png)               |
+|    5 | The runbook remains linked to the nightly 02:00 schedule              | [`05_schedule-linked-next-run.png`](./proofs/v1.1-custom-rbac-hardening/screenshots/05_schedule-linked-next-run.png)       |
+
+### V1.1 Screenshots
+
+#### 01 — Custom Role at Resource Group Scope
+
+![Custom Role at Resource Group Scope](./proofs/v1.1-custom-rbac-hardening/screenshots/01_custom-role-rg-scope.png)
+
+#### 02 — Running and Tagged Test VM
+
+![Running and Tagged Test VM](./proofs/v1.1-custom-rbac-hardening/screenshots/02_vm-before-running-tagged.png)
+
+#### 03 — Successful Runbook Execution
+
+![Successful Runbook Execution](./proofs/v1.1-custom-rbac-hardening/screenshots/03_runbook-custom-role-success.png)
+
+#### 04 — VM Successfully Deallocated
+
+![VM Successfully Deallocated](./proofs/v1.1-custom-rbac-hardening/screenshots/04_vm-after-deallocated.png)
+
+#### 05 — Nightly Schedule Linked to the Runbook
+
+![Nightly Schedule Linked to the Runbook](./proofs/v1.1-custom-rbac-hardening/screenshots/05_schedule-linked-next-run.png)
+
+---
+
+## Key Learnings
+
+1. **Managed Identity does not automatically mean least privilege.**
+   Machine identities should receive only the permissions required for their specific task.
+
+2. **RBAC scope matters as much as the role itself.**
+   Even an appropriate role can be too broad if it is assigned at subscription scope.
+
+3. **A working automation is not automatically a governance-ready control.**
+   Scoped permissions, custom roles, validation, and proof artifacts are part of the engineering work.
+
+4. **Use `PowerState` codes for automation logic.**
+   `PowerState/running` is more reliable for technical validation than the display value `VM running`.
+
+---
+
+## Next Evolution
+
+The current version uses a fixed daily schedule.
+
+The next iteration will move the guardrail toward an event-driven design:
+
+* Azure Activity Log
+* Event Grid
+* Azure Functions or Durable Functions
+* Dynamic AutoStop timing
+* Extended logging and auditability
+
+> Started as cost automation. Evolved into a governance control.
