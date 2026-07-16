@@ -2,9 +2,13 @@
 
 ## Tag-Based FinOps Guardrail with Least-Privilege RBAC
 
-This module automatically deallocates Azure virtual machines based on a tag.
+This module automatically deallocates Azure virtual machines based on an operational tag.
 
-The goal is not only to build a working cost-control automation, but to evolve it into a reproducible and auditable governance control using Managed Identity, scoped RBAC, and proof-based validation.
+The goal is not only to build a working cost-control automation, but to evolve it into a reproducible and auditable governance control using Managed Identity, scoped RBAC, custom roles, and proof-based validation.
+
+This module represents **Part 1** of the FinOps Guardrails Evolution:
+
+> A tagged VM is deallocated by an Azure Automation Runbook using a system-assigned Managed Identity with a custom RBAC role scoped only to the target resource group.
 
 ---
 
@@ -13,7 +17,7 @@ The goal is not only to build a working cost-control automation, but to evolve i
 The guardrail:
 
 * searches only within the dedicated target resource group `rg-finops-lab`
-* identifies VMs with the tag `AutoStop=0200`
+* identifies VMs with the operational tag `AutoStop=0200`
 * checks the actual runtime state through `PowerState/*`
 * deallocates only VMs that are currently running
 * authenticates through a system-assigned Managed Identity
@@ -82,6 +86,24 @@ It cannot create, resize, reconfigure, delete, or manage VMs across the subscrip
 
 ---
 
+## Tags Used by This Module
+
+This module uses an operational control tag:
+
+```text
+AutoStop = 0200
+```
+
+This tag is evaluated by the runbook.
+
+It tells the automation:
+
+> This VM is allowed to be deallocated by the nightly AutoStop guardrail.
+
+Governance and cost-allocation tags such as `Environment`, `Project`, `CostCenter`, and `Owner` are handled in **Module 03 — Tag Governance Policy**.
+
+---
+
 ## Components
 
 ### Control Plane
@@ -96,13 +118,13 @@ It cannot create, resize, reconfigure, delete, or manage VMs across the subscrip
 
 ### Target Scope
 
-| Component       | Name                                            |
-| --------------- | ----------------------------------------------- |
-| Resource Group  | `rg-finops-lab`                                 |
-| Proof VM        | `vm-finops-autostop-01`                         |
-| Required tag    | `AutoStop=0200`                                 |
-| Additional tags | `Environment=Lab`, `Purpose=FinOpsAutoStopTest` |
-| Public IP       | None                                            |
+| Component       | Name                                                                                                      |
+| --------------- | --------------------------------------------------------------------------------------------------------- |
+| Resource Group  | `rg-finops-lab`                                                                                           |
+| Proof VM        | `vm-finops-autostop-01`                                                                                   |
+| Operational tag | `AutoStop=0200`                                                                                           |
+| Governance tags | Added by Module 03: `Environment=Lab`, `Project=FinOpsGuardrails`, `CostCenter=FinOpsLab`, `Owner=Manuel` |
+| Public IP       | None                                                                                                      |
 
 ---
 
@@ -187,6 +209,43 @@ The initial working implementation, including CLI evidence and screenshots, is a
 
 ---
 
+## Relation to Module 03
+
+Module 02 controls **what happens to the VM**:
+
+```text
+AutoStop=0200
+        ↓
+Runbook detects the VM
+        ↓
+Managed Identity deallocates the VM
+        ↓
+Custom RBAC limits the blast radius
+```
+
+Module 03 adds **governance context** to the same target environment:
+
+```text
+rg-finops-lab has governance tags
+        ↓
+Azure Policy inherits missing tags to resources
+        ↓
+VM receives Environment, Project, CostCenter, and Owner
+        ↓
+AutoStop automation still works
+```
+
+Together, both modules form a stronger FinOps guardrail pattern:
+
+```text
+Governance context
++ Operational control
++ Least-privilege execution
++ Proof-based validation
+```
+
+---
+
 ## Key Learnings
 
 1. **Managed Identity does not automatically mean least privilege.**
@@ -201,18 +260,30 @@ The initial working implementation, including CLI evidence and screenshots, is a
 4. **Use `PowerState` codes for automation logic.**
    `PowerState/running` is more reliable for technical validation than the display value `VM running`.
 
+5. **Operational tags and governance tags serve different purposes.**
+   `AutoStop=0200` controls automation behavior.
+   `Environment`, `Project`, `CostCenter`, and `Owner` describe the resource.
+
 ---
 
-## Next Evolution
+## Evolution Path
 
-The current version uses a fixed daily schedule.
+Module 02 focuses on least-privilege VM AutoStop automation.
 
-The next iteration will move the guardrail toward an event-driven design:
+The next implemented step is covered in [`Module 03 — Tag Governance Policy`](../03-tag-governance-policy):
+
+* Azure Policy-based tag governance
+* automatic inheritance of governance tags from `rg-finops-lab`
+* validation with the same AutoStop VM scenario
+* proof that the VM remains tagged after deallocation
+
+Future iterations may move the guardrail toward an event-driven design:
 
 * Azure Activity Log
 * Event Grid
 * Azure Functions or Durable Functions
 * Dynamic AutoStop timing
 * Extended logging and auditability
+* automatic `CreatedBy` tagging
 
 > Started as cost automation. Evolved into a governance control.
