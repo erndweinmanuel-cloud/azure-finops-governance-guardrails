@@ -255,13 +255,13 @@ Or from PowerShell:
 
 | File | Description |
 |---|---|
-| `proofs/screenshots/01_policy-baseline-deployment-success-rg-tags_subid-blurred.png` | Deployment success and resource group tags |
-| `proofs/screenshots/02_policy-assignments-created.png` | Policy assignments created |
-| `proofs/screenshots/03_vm-allowed-b1s-autostop-no-public-ip.png` | Allowed VM proof |
-| `proofs/screenshots/04_attempt-create-vm-without-autostop-tag.png` | Attempted VM deployment without AutoStop tag |
-| `proofs/screenshots/05_deny-vm-without-autostop-tag-short.png` | Deny proof for missing AutoStop tag |
-| `proofs/screenshots/06_deny-vm-without-autostop-tag-details_no-subid.png` | Detailed AutoStop policy deny proof |
-| `proofs/screenshots/07_deny-extreme-vm-size-policy_subid-redacted.png` | Extreme VM size deny proof |
+| [`01_policy-baseline-deployment-success-rg-tags_subid-blurred.png`](proofs/screenshots/01_policy-baseline-deployment-success-rg-tags_subid-blurred.png) | Deployment success and resource group tags |
+| [`02_policy-assignments-created.png`](proofs/screenshots/02_policy-assignments-created.png) | Policy assignments created |
+| [`03_vm-allowed-b1s-autostop-no-public-ip.png`](proofs/screenshots/03_vm-allowed-b1s-autostop-no-public-ip.png) | Allowed VM proof |
+| [`04_attempt-create-vm-without-autostop-tag.png`](proofs/screenshots/04_attempt-create-vm-without-autostop-tag.png) | Attempted VM deployment without AutoStop tag |
+| [`05_deny-vm-without-autostop-tag-short.png`](proofs/screenshots/05_deny-vm-without-autostop-tag-short.png) | Deny proof for missing AutoStop tag |
+| [`06_deny-vm-without-autostop-tag-details_no-subid.png`](proofs/screenshots/06_deny-vm-without-autostop-tag-details_no-subid.png) | Detailed AutoStop policy deny proof |
+| [`07_deny-extreme-vm-size-policy_subid-redacted.png`](proofs/screenshots/07_deny-extreme-vm-size-policy_subid-redacted.png) | Extreme VM size deny proof |
 
 ## Key Learnings
 
