@@ -240,29 +240,29 @@ Or from PowerShell:
 
 | File | Description |
 |---|---|
-| `proofs/cli/01_rg-tags.jsonc` | Shows governance tags on the lab resource group |
-| `proofs/cli/02_policy-definitions.jsonc` | Shows created custom policy definitions |
-| `proofs/cli/03_policy-assignments.jsonc` | Shows policy assignments at resource group scope |
-| `proofs/cli/04_vm-allowed-b1s-autostop-no-public-ip.jsonc` | Shows an allowed VM with approved size, no public IP, AutoStop tag, and inherited governance tags |
-| `proofs/cli/05_deny-vm-without-autostop.txt` | Shows VM deployment denied because the AutoStop tag is missing |
-| `proofs/cli/05b_verify-no-autostop-vm-not-created.jsonc` | Verifies that the denied VM was not created |
-| `proofs/cli/06_deny-vm-extreme-size.txt` | Shows oversized VM deployment denied by the allowed VM size policy |
-| `proofs/cli/06b_verify-extreme-size-vm-not-created.jsonc` | Verifies that the denied oversized VM was not created |
-| `proofs/cli/07_deny-public-ip.txt` | Shows public IP creation denied by policy |
-| `proofs/cli/07b_verify-public-ip-not-created.jsonc` | Verifies that the denied public IP was not created |
+| [proofs/cli/01_rg-tags.jsonc](proofs/cli/01_rg-tags.jsonc) | Shows governance tags on the lab resource group |
+| [proofs/cli/02_policy-definitions.jsonc](proofs/cli/02_policy-definitions.jsonc) | Shows created custom policy definitions |
+| [proofs/cli/03_policy-assignments.jsonc](proofs/cli/03_policy-assignments.jsonc) | Shows policy assignments at resource group scope |
+| [proofs/cli/04_vm-allowed-b1s-autostop-no-public-ip.jsonc](proofs/cli/04_vm-allowed-b1s-autostop-no-public-ip.jsonc) | Shows an allowed VM with approved size, no public IP, AutoStop tag, and inherited governance tags |
+| [proofs/cli/05_deny-vm-without-autostop.txt](proofs/cli/05_deny-vm-without-autostop.txt) | Shows VM deployment denied because the AutoStop tag is missing |
+| [proofs/cli/05b_verify-no-autostop-vm-not-created.jsonc](proofs/cli/05b_verify-no-autostop-vm-not-created.jsonc) | Verifies that the denied VM was not created |
+| [proofs/cli/06_deny-vm-extreme-size.txt](proofs/cli/06_deny-vm-extreme-size.txt) | Shows oversized VM deployment denied by the allowed VM size policy |
+| [proofs/cli/06b_verify-extreme-size-vm-not-created.jsonc](proofs/cli/06b_verify-extreme-size-vm-not-created.jsonc) | Verifies that the denied oversized VM was not created |
+| [proofs/cli/06c_deny-vm-extreme-size-filtered.txt](proofs/cli/06c_deny-vm-extreme-size-filtered.txt) | Filtered output of the extreme VM size policy violation |
+| [proofs/cli/07_deny-public-ip.txt](proofs/cli/07_deny-public-ip.txt) | Shows public IP creation denied by policy |
+| [proofs/cli/07b_verify-public-ip-not-created.jsonc](proofs/cli/07b_verify-public-ip-not-created.jsonc) | Verifies that the denied public IP was not created |
 
 ### Screenshot Proofs
 
 | File | Description |
 |---|---|
-| [`01_policy-baseline-deployment-success-rg-tags_subid-blurred.png`](proofs/screenshots/01_policy-baseline-deployment-success-rg-tags_subid-blurred.png) | Deployment success and resource group tags |
-| [`02_policy-assignments-created.png`](proofs/screenshots/02_policy-assignments-created.png) | Policy assignments created |
-| [`03_vm-allowed-b1s-autostop-no-public-ip.png`](proofs/screenshots/03_vm-allowed-b1s-autostop-no-public-ip.png) | Allowed VM proof |
-| [`04_attempt-create-vm-without-autostop-tag.png`](proofs/screenshots/04_attempt-create-vm-without-autostop-tag.png) | Attempted VM deployment without AutoStop tag |
-| [`05_deny-vm-without-autostop-tag-short.png`](proofs/screenshots/05_deny-vm-without-autostop-tag-short.png) | Deny proof for missing AutoStop tag |
-| [`06_deny-vm-without-autostop-tag-details_no-subid.png`](proofs/screenshots/06_deny-vm-without-autostop-tag-details_no-subid.png) | Detailed AutoStop policy deny proof |
-| [`07_deny-extreme-vm-size-policy_subid-redacted.png`](proofs/screenshots/07_deny-extreme-vm-size-policy_subid-redacted.png) | Extreme VM size deny proof |
-
+| [proofs/screenshots/01_policy-baseline-deployment-success-rg-tags_subid-blurred.png](proofs/screenshots/01_policy-baseline-deployment-success-rg-tags_subid-blurred.png) | Deployment success and resource group tags |
+| [proofs/screenshots/02_policy-assignments-created.png](proofs/screenshots/02_policy-assignments-created.png) | Policy assignments created |
+| [proofs/screenshots/03_vm-allowed-b1s-autostop-no-public-ip.png](proofs/screenshots/03_vm-allowed-b1s-autostop-no-public-ip.png) | Allowed VM proof |
+| [proofs/screenshots/04_attempt-create-vm-without-autostop-tag.png](proofs/screenshots/04_attempt-create-vm-without-autostop-tag.png) | Attempted VM deployment without AutoStop tag |
+| [proofs/screenshots/05_deny-vm-without-autostop-tag-short.png](proofs/screenshots/05_deny-vm-without-autostop-tag-short.png) | Deny proof for missing AutoStop tag |
+| [proofs/screenshots/06_deny-vm-without-autostop-tag-details_no-subid.png](proofs/screenshots/06_deny-vm-without-autostop-tag-details_no-subid.png) | Detailed AutoStop policy deny proof |
+| [proofs/screenshots/07_deny-extreme-vm-size-policy_subid-redacted.png](proofs/screenshots/07_deny-extreme-vm-size-policy_subid-redacted.png) | Extreme VM size deny proof |
 ## Key Learnings
 
 - Azure Policy is a strong preventive control for lab and sandbox environments.
