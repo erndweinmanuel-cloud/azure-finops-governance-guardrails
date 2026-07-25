@@ -17,7 +17,7 @@ The previous modules focused on visibility, automation, and accountability:
 
 The key idea of this module:
 
-> Do not only react when costs already exist.  
+> Do not only react when costs already exist.
 > Prevent unnecessary cost risks before resources are created.
 
 ## What This Module Does
@@ -183,13 +183,9 @@ Risky resources are blocked before they are created.
 
 In short:
 
-```text
-In short:
-
-Part 1: The VM is automatically stopped.
-Part 2: The VM becomes organizationally and financially attributable.
-Part 3: Expensive or risky resources are prevented from being created in the first place.
-```
+- **Part 1:** The VM is automatically stopped.
+- **Part 2:** The VM becomes organizationally and financially attributable.
+- **Part 3:** Expensive or risky resources are prevented from being created in the first place.
 
 ## Architecture
 
@@ -263,6 +259,7 @@ Or from PowerShell:
 | [proofs/screenshots/05_deny-vm-without-autostop-tag-short.png](proofs/screenshots/05_deny-vm-without-autostop-tag-short.png) | Deny proof for missing AutoStop tag |
 | [proofs/screenshots/06_deny-vm-without-autostop-tag-details_no-subid.png](proofs/screenshots/06_deny-vm-without-autostop-tag-details_no-subid.png) | Detailed AutoStop policy deny proof |
 | [proofs/screenshots/07_deny-extreme-vm-size-policy_subid-redacted.png](proofs/screenshots/07_deny-extreme-vm-size-policy_subid-redacted.png) | Extreme VM size deny proof |
+
 ## Key Learnings
 
 - Azure Policy is a strong preventive control for lab and sandbox environments.
