@@ -1,0 +1,36 @@
+{
+  "properties": {
+    "displayName": "Deny public IP addresses in lab",
+    "policyType": "Custom",
+    "mode": "Indexed",
+    "description": "Denies the creation of public IP addresses in the lab environment.",
+    "metadata": {
+      "category": "FinOps Guardrails",
+      "version": "1.0.0"
+    },
+    "parameters": {
+      "effect": {
+        "type": "String",
+        "metadata": {
+          "displayName": "Effect",
+          "description": "Enable or disable the execution of the policy."
+        },
+        "allowedValues": [
+          "Deny",
+          "Audit",
+          "Disabled"
+        ],
+        "defaultValue": "Deny"
+      }
+    },
+    "policyRule": {
+      "if": {
+        "field": "type",
+        "equals": "Microsoft.Network/publicIPAddresses"
+      },
+      "then": {
+        "effect": "[parameters('effect')]"
+      }
+    }
+  }
+}
