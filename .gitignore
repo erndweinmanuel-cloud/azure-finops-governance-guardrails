@@ -6,3 +6,9 @@ Thumbs.db
 # secrets
 *.env
 .env*
+
+# Azurite local storage emulator
+__blobstorage__/
+__queuestorage__/
+__azurite_db_*.json
+AzuriteConfig
