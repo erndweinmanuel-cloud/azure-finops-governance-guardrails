@@ -1,4 +1,4 @@
-﻿# Module 05 - Event-Driven Resource Attribution
+# Module 05 - Event-Driven Resource Attribution
 
 ## Status
 
@@ -7,7 +7,11 @@ In Progress
 Current implementation:
 
 - Identity and RBAC foundation completed
-- Event-driven attribution pipeline pending
+- Azure Activity Log event schema validated
+- Azure Function foundation implemented
+- Event Grid trigger validated locally
+- Creator identity extraction validated locally
+- Azure deployment and automatic resource tagging pending
 
 ---
 
@@ -380,18 +384,37 @@ Completed:
 - Auditor read-only validation
 - Engineer VM deployment validation
 - Platform / workload separation validation
-- Cleanup of temporary validation resources
+- Azure Activity Log inspection using a real resource creation event
+- `ResourceWriteSuccess` event validation
+- Caller and identity claims validation
+- Azure Functions Core Tools local environment
+- Local Azurite development storage
+- Python Azure Function foundation
+- Event Grid trigger implementation
+- Local Event Grid trigger validation
+- Resource ID extraction
+- Operation extraction
+- Creator identity extraction
+- Identity type extraction
+- Creation timestamp extraction
+- Structured attribution logging
+- Cleanup of temporary Azure validation resources
 
 Pending:
 
-- Activity Log event integration
-- Event Grid subscription
-- Azure Function
-- Creator identity extraction
+- Resource tagging implementation
+- Local tagging logic validation
+- Azure Function infrastructure deployment
+- Managed Identity for the Azure Function
+- Least-privilege RBAC for resource tagging
+- Azure Function deployment
+- Event Grid subscription in Azure
+- Real Azure Event Grid integration
 - `CreatedBy` tagging
 - `CreatedByType` tagging
-- Logging
-- End-to-end validation
+- `CreatedAt` tagging
+- End-to-end validation with real Azure resource creation
+- Edge-case validation
 - Final CLI proofs
 - Final screenshots
 
@@ -427,6 +450,18 @@ Update Resource Tags
         +--> CreatedByType
 ```
 
-The next implementation step is to validate the Azure Activity Log / Event Grid event schema and determine which caller and identity claims are reliably available to the Azure Function.
+The Azure Activity Log event schema and caller identity claims have been validated.
+
+A local Python Azure Function now successfully receives simulated `Microsoft.Resources.ResourceWriteSuccess` events through an Event Grid trigger and extracts:
+
+- Resource ID
+- Operation
+- Creator identity
+- Creator identity type
+- Creation timestamp
+
+The next implementation step is to add the resource tagging engine and validate the tagging logic locally before deploying the Function to Azure.
+
+After local validation, the Function will be deployed with a Managed Identity and least-privilege RBAC permissions. Azure Event Grid will then connect real resource creation events to the Function.
 
 Final proofs will be collected after the complete event-driven attribution pipeline is operational.
