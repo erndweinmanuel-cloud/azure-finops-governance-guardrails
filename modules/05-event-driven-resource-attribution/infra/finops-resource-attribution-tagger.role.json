@@ -1,0 +1,15 @@
+﻿{
+  "Name": "FinOps Resource Attribution Tagger",
+  "IsCustom": true,
+  "Description": "Least-privilege role for the attribution function to read and merge Azure resource tags.",
+  "Actions": [
+    "Microsoft.Resources/tags/read",
+    "Microsoft.Resources/tags/write"
+  ],
+  "NotActions": [],
+  "DataActions": [],
+  "NotDataActions": [],
+  "AssignableScopes": [
+    "/subscriptions/<subscription-id>"
+  ]
+}
