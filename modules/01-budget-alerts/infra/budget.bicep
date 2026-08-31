@@ -13,30 +13,43 @@ resource budget 'Microsoft.Consumption/budgets@2024-08-01' = {
     category: 'Cost'
     amount: amount
     timeGrain: 'Monthly'
+
     timePeriod: {
       startDate: startDate
       endDate: endDate
     }
+
     notifications: {
       actual_GTE_50: {
         enabled: true
         operator: 'GreaterThan'
         threshold: 50
-        contactGroups: [ actionGroupId ]
+        contactEmails: []
+        contactGroups: [
+          actionGroupId
+        ]
         locale: locale
       }
+
       actual_GTE_80: {
         enabled: true
         operator: 'GreaterThan'
         threshold: 80
-        contactGroups: [ actionGroupId ]
+        contactEmails: []
+        contactGroups: [
+          actionGroupId
+        ]
         locale: locale
       }
+
       actual_GTE_100: {
         enabled: true
         operator: 'GreaterThan'
         threshold: 100
-        contactGroups: [ actionGroupId ]
+        contactEmails: []
+        contactGroups: [
+          actionGroupId
+        ]
         locale: locale
       }
     }

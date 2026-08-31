@@ -52,5 +52,8 @@ Email evidence (redacted screenshots):
 
 ## Notes
 
+- `rg-ops-guardrails` is shared infrastructure used by multiple guardrail modules.
+  Module 01 cleanup removes only the budget and Action Group and never deletes the shared resource group.
+
 - Action Groups require `--location global` (resource-type constraint).
 - Budget is created via ARM REST/Bicep because `az consumption budget` is preview and can be inconsistent depending on context.
