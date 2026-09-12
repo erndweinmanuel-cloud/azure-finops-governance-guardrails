@@ -2,16 +2,18 @@
 set -euo pipefail
 
 # Run this script from Git Bash.
-# Prevent Git Bash from converting Azure resource IDs such as /subscriptions/... into local paths.
+# Prevent Git Bash from converting Azure resource IDs such as
+# /subscriptions/... into local Windows paths.
 az_no_pathconv() {
   MSYS_NO_PATHCONV=1 az "$@"
 }
 
 # Shared control-plane resource group.
-# This must remain because it is also used by other FinOps modules.
+# Module 02 consumes resources in this scope but does not own the Resource Group.
 RG_OPS="rg-ops-guardrails"
 
-# Dedicated Module 02 test scope.
+# Shared FinOps lab resource group.
+# Module 02 uses this as its AutoStop target scope but must never delete it.
 RG_FINOPS_LAB="rg-finops-lab"
 
 AA_NAME="aa-ops-guardrails"
@@ -29,12 +31,12 @@ echo "WARNING: This cleanup removes Module 02 resources only:"
 echo "- Automation Account: $AA_NAME"
 echo "- Runbook: $RUNBOOK_NAME"
 echo "- Schedule: $SCHEDULE_NAME"
-echo "- Managed Identity role assignments"
+echo "- Module 02 Managed Identity role assignments"
 echo "- Custom role definition: $ROLE_NAME"
-echo "- FinOps lab resource group: $RG_FINOPS_LAB"
 echo
-echo "The shared resource group '$RG_OPS' will be kept."
-echo "Budget alerts and other FinOps modules in that Resource Group remain untouched."
+echo "The following shared Resource Groups will be preserved:"
+echo "- $RG_OPS"
+echo "- $RG_FINOPS_LAB"
 echo
 
 read -r -p "Type DELETE to continue: " CONFIRM
@@ -54,7 +56,7 @@ PRINCIPAL_ID=$(az automation account show \
 echo "Managed Identity Principal ID: ${PRINCIPAL_ID:-not found}"
 
 if [[ -n "${PRINCIPAL_ID:-}" ]]; then
-  echo "Removing custom-role assignment from rg-finops-lab..."
+  echo "Removing Module 02 custom-role assignment from $RG_FINOPS_LAB..."
 
   az_no_pathconv role assignment delete \
     --assignee-object-id "$PRINCIPAL_ID" \
@@ -63,7 +65,7 @@ if [[ -n "${PRINCIPAL_ID:-}" ]]; then
     -o none 2>/dev/null || true
 
   # Safety cleanup for old V1 deployments.
-  # This does not create a broad assignment; it only removes one if it still exists.
+  # This only removes a legacy broad assignment if one still exists.
   echo "Removing legacy subscription-level Virtual Machine Contributor assignment..."
 
   az_no_pathconv role assignment delete \
@@ -73,8 +75,8 @@ if [[ -n "${PRINCIPAL_ID:-}" ]]; then
     -o none 2>/dev/null || true
 fi
 
-# Deleting the Automation Account also removes its runbooks, schedules
-# and runbook-to-schedule links.
+# Deleting the Automation Account also removes its runbooks,
+# schedules and runbook-to-schedule links.
 echo "Removing Automation Account and contained Automation resources..."
 
 az automation account delete \
@@ -83,23 +85,15 @@ az automation account delete \
   --yes \
   -o none 2>/dev/null || true
 
-echo "Removing custom role definition..."
+echo "Removing Module 02 custom role definition..."
 
 az role definition delete \
   --name "$ROLE_NAME" \
   -o none 2>/dev/null || true
 
-echo "Removing FinOps lab resource group and all test resources..."
-
-az group delete \
-  --name "$RG_FINOPS_LAB" \
-  --yes \
-  --no-wait \
-  -o none 2>/dev/null || true
-
-echo "Keeping shared resource group: $RG_OPS"
-echo "Budget alerts and other shared FinOps resources remain available."
-
 echo
-echo "Cleanup initiated successfully."
-echo "The deletion of $RG_FINOPS_LAB runs asynchronously."
+echo "Keeping shared Resource Group: $RG_OPS"
+echo "Keeping shared Resource Group: $RG_FINOPS_LAB"
+echo
+echo "Module 02 cleanup completed."
+echo "Shared platform Resource Groups were preserved."
