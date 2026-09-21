@@ -1,83 +1,140 @@
 param()
 
+$ErrorActionPreference = "Stop"
+
 $TagName  = "AutoStop"
 $TagValue = "0200"
 
-# The guardrail is intentionally limited to this dedicated lab resource group.
+# Shared FinOps lab target scope.
+# Module 02 consumes this Resource Group but does not own it.
 $TargetResourceGroup = "rg-finops-lab"
 
-Disable-AzContextAutosave -Scope Process | Out-Null
-Connect-AzAccount -Identity | Out-Null
+try {
+    Write-Output "Authenticating with system-assigned Managed Identity..."
 
-$ctx = Get-AzContext
-Write-Output ("Connected. Subscription: {0}" -f $ctx.Subscription.Id)
-Write-Output ("Target Resource Group: {0}" -f $TargetResourceGroup)
+    Disable-AzContextAutosave -Scope Process | Out-Null
 
-# Only retrieve VMs from the dedicated FinOps lab resource group.
-$vms = Get-AzVM -ResourceGroupName $TargetResourceGroup -Status
+    Connect-AzAccount `
+        -Identity `
+        -ErrorAction Stop |
+        Out-Null
 
-$targets = $vms | Where-Object {
-    $_.Tags -and (
-        $_.Tags.GetEnumerator() |
-        Where-Object {
-            $_.Key.Trim() -ieq $TagName -and
-            ("" + $_.Value).Trim() -eq $TagValue
-        } |
-        Select-Object -First 1
+    $ctx = Get-AzContext -ErrorAction Stop
+
+    if (
+        $null -eq $ctx -or
+        $null -eq $ctx.Subscription -or
+        [string]::IsNullOrWhiteSpace($ctx.Subscription.Id)
+    ) {
+        throw "Managed Identity authenticated, but no Azure subscription context is available."
+    }
+
+    $SubscriptionId = $ctx.Subscription.Id
+
+    Write-Output ("Connected. Subscription: {0}" -f $SubscriptionId)
+    Write-Output ("Target Resource Group: {0}" -f $TargetResourceGroup)
+
+    Write-Output "Discovering virtual machines..."
+
+    $vms = @(
+        Get-AzVM `
+            -ResourceGroupName $TargetResourceGroup `
+            -Status `
+            -ErrorAction Stop
     )
-}
 
-Write-Output (
-    "Found {0} VM(s) in {1} with tag {2}={3}" -f
-    $targets.Count,
-    $TargetResourceGroup,
-    $TagName,
-    $TagValue
-)
-
-foreach ($vm in $targets) {
-    $vmStatus = Get-AzVM `
-        -ResourceGroupName $vm.ResourceGroupName `
-        -Name $vm.Name `
-        -Status
-
-    $power = $vmStatus.Statuses |
-        Where-Object { $_.Code -like "PowerState/*" } |
-        Select-Object -First 1
-
-    $state = $power.Code
+    $targets = @(
+        $vms | Where-Object {
+            $_.Tags -and (
+                $_.Tags.GetEnumerator() |
+                Where-Object {
+                    $_.Key.Trim() -ieq $TagName -and
+                    ("" + $_.Value).Trim() -eq $TagValue
+                } |
+                Select-Object -First 1
+            )
+        }
+    )
 
     Write-Output (
-        "VM {0}/{1} state: {2}" -f
-        $vm.ResourceGroupName,
-        $vm.Name,
-        $state
+        "Found {0} VM(s) in {1} with tag {2}={3}" -f
+        $targets.Count,
+        $TargetResourceGroup,
+        $TagName,
+        $TagValue
     )
 
-    if ($state -eq "PowerState/running") {
+    foreach ($vm in $targets) {
         Write-Output (
-            "Deallocating VM {0}/{1}..." -f
+            "Checking VM {0}/{1}..." -f
             $vm.ResourceGroupName,
             $vm.Name
         )
 
-        Stop-AzVM `
+        $vmStatus = Get-AzVM `
             -ResourceGroupName $vm.ResourceGroupName `
             -Name $vm.Name `
-            -Force |
-            Out-Null
+            -Status `
+            -ErrorAction Stop
+
+        $power = $vmStatus.Statuses |
+            Where-Object { $_.Code -like "PowerState/*" } |
+            Select-Object -First 1
+
+        if ($null -eq $power -or [string]::IsNullOrWhiteSpace($power.Code)) {
+            throw (
+                "Could not determine power state for VM {0}/{1}." -f
+                $vm.ResourceGroupName,
+                $vm.Name
+            )
+        }
+
+        $state = $power.Code
 
         Write-Output (
-            "Deallocated VM {0}/{1}" -f
+            "VM {0}/{1} state: {2}" -f
             $vm.ResourceGroupName,
-            $vm.Name
+            $vm.Name,
+            $state
         )
+
+        if ($state -eq "PowerState/running") {
+            Write-Output (
+                "Deallocating VM {0}/{1}..." -f
+                $vm.ResourceGroupName,
+                $vm.Name
+            )
+
+            Stop-AzVM `
+                -ResourceGroupName $vm.ResourceGroupName `
+                -Name $vm.Name `
+                -Force `
+                -ErrorAction Stop |
+                Out-Null
+
+            Write-Output (
+                "Deallocated VM {0}/{1}" -f
+                $vm.ResourceGroupName,
+                $vm.Name
+            )
+        }
+        else {
+            Write-Output (
+                "Skip VM {0}/{1} (state: {2})" -f
+                $vm.ResourceGroupName,
+                $vm.Name,
+                $state
+            )
+        }
     }
-    else {
-        Write-Output (
-            "Skip VM {0}/{1} (not running)" -f
-            $vm.ResourceGroupName,
-            $vm.Name
-        )
-    }
+
+    Write-Output "AutoStop guardrail completed successfully."
+}
+catch {
+    Write-Error (
+        "AutoStop guardrail failed: {0}" -f
+        $_.Exception.Message
+    )
+
+    throw
 }
