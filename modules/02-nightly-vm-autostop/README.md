@@ -1,14 +1,14 @@
-﻿# Module 02 — Nightly VM Auto-Stop
+# Module 02 — Nightly VM Auto-Stop
 
 ## Tag-Based FinOps Guardrail with Least-Privilege RBAC
 
 This module automatically deallocates Azure virtual machines based on an operational tag.
 
-The goal is not only to build a working cost-control automation, but to evolve it into a reproducible and auditable governance control using Managed Identity, scoped RBAC, custom roles, and proof-based validation.
+The goal is not only to build a working cost-control automation, but to maintain it as a reproducible and auditable governance control using Managed Identity, scoped RBAC, custom roles, explicit ownership boundaries, and proof-based validation.
 
-This module represents **Part 1** of the FinOps Guardrails Evolution:
+Module 02 consumes shared Foundation scopes but owns only its own Automation and RBAC resources.
 
-> A tagged VM is deallocated by an Azure Automation Runbook using a system-assigned Managed Identity with a custom RBAC role scoped only to the target resource group.
+> A tagged VM is deallocated by an Azure Automation Runbook using a system-assigned Managed Identity with a custom RBAC role scoped only to the shared FinOps lab resource group.
 
 ---
 
@@ -16,15 +16,41 @@ This module represents **Part 1** of the FinOps Guardrails Evolution:
 
 The guardrail:
 
-* searches only within the dedicated target resource group `rg-finops-lab`
+* searches only within the shared target resource group `rg-finops-lab`
 * identifies VMs with the operational tag `AutoStop=0200`
 * checks the actual runtime state through `PowerState/*`
 * deallocates only VMs that are currently running
 * authenticates through a system-assigned Managed Identity
 * uses a custom Azure RBAC role instead of a broad built-in role
-* limits permissions to Resource Group scope
+* limits permissions to `rg-finops-lab`
+* fails the Automation job on authentication, context, VM discovery, state, or deallocation errors
+* validates the expected schedule configuration during deployment
 
 A deallocated VM no longer consumes VM compute resources. Managed disks and other attached resources remain available until they are deleted separately.
+
+---
+
+## Ownership Boundary
+
+The following Resource Groups are shared Foundation scopes and are **not owned by Module 02**:
+
+```text
+rg-ops-guardrails
+rg-finops-lab
+```
+
+Module 02 must never create or delete these Resource Groups.
+
+Module 02 owns:
+
+* Automation Account `aa-ops-guardrails`
+* Runbook `rb-stop-tagged-vms`
+* Schedule `sched-stop-vms-0200`
+* Runbook-to-schedule link
+* custom role `FinOps VM AutoStop Operator`
+* the Managed Identity role assignment for the Automation Account
+
+The proof VM `vm-finops-autostop-01` is a **temporary E2E fixture**. It may be created for validation and deleted immediately afterwards to avoid unnecessary cost.
 
 ---
 
@@ -32,12 +58,17 @@ A deallocated VM no longer consumes VM compute resources. Managed disks and othe
 
 ```mermaid
 flowchart LR
+    F1[Shared Foundation<br/>rg-ops-guardrails]
+    F2[Shared Foundation<br/>rg-finops-lab]
+
     S[Daily Schedule<br/>02:00 Europe/Berlin] --> AA[Automation Account<br/>aa-ops-guardrails]
     AA --> RB[PowerShell Runbook<br/>rb-stop-tagged-vms]
     RB --> MI[System-Assigned<br/>Managed Identity]
     MI --> CR[Custom Role<br/>FinOps VM AutoStop Operator]
-    CR --> RG[Resource Group<br/>rg-finops-lab]
-    RG --> VM[Tagged VM<br/>AutoStop=0200]
+    CR --> F2
+    F2 --> VM[Temporary Tagged VM<br/>AutoStop=0200]
+
+    F1 --> AA
 ```
 
 ---
@@ -50,11 +81,31 @@ flowchart LR
 | Target scope   | Subscription-wide VM discovery       | Explicitly limited to `rg-finops-lab`                          |
 | Identity       | System-assigned Managed Identity     | Unchanged                                                      |
 | RBAC role      | `Virtual Machine Contributor`        | Custom role: `FinOps VM AutoStop Operator`                     |
-| RBAC scope     | Entire subscription                  | Dedicated Resource Group only                                  |
+| RBAC scope     | Entire subscription                  | Shared FinOps lab Resource Group only                          |
 | Security model | Functional, but overly broad         | Least privilege with reduced blast radius                      |
 | Validation     | Successful scheduled VM deallocation | Successful deallocation after removing the broad built-in role |
 
 The V1.1 hardening was validated successfully: after removing the subscription-level `Virtual Machine Contributor` assignment, the runbook still deallocated the tagged VM using only the custom role assigned to `rg-finops-lab`.
+
+---
+
+## Brownfield Hardening — September 2026
+
+Before Terraform migration, the live implementation was compared with the repository and repaired.
+
+The main findings and fixes were:
+
+* `rg-ops-guardrails` and `rg-finops-lab` are shared Foundation scopes and are preserved by deploy and cleanup logic
+* the Module 02 custom role and Managed Identity role assignment had been lost and were restored
+* the deploy script now reconciles an existing custom role instead of silently skipping it
+* deployment validates the expected RBAC actions and assignable scope
+* deployment validates the daily `02:00` schedule, `Europe/Berlin` time zone, and enabled state
+* the Runbook now fails fast instead of allowing Azure errors to result in a misleading `Completed` job
+* the Runbook explicitly validates that a usable subscription context exists after Managed Identity authentication
+* a no-VM validation run completed successfully with a real subscription context and no Error stream
+* repeated deployment was validated successfully, including the existing-role update path
+
+This Brownfield repair is intentionally completed before Terraform import so that Terraform does not adopt a broken or ambiguous live architecture.
 
 ---
 
@@ -82,7 +133,7 @@ This allows the automation to:
 * inspect VM runtime status
 * deallocate running target VMs
 
-It cannot create, resize, reconfigure, delete, or manage VMs across the subscription.
+It cannot create, resize, reconfigure, or delete VMs.
 
 ---
 
@@ -100,7 +151,7 @@ It tells the automation:
 
 > This VM is allowed to be deallocated by the nightly AutoStop guardrail.
 
-Governance and cost-allocation tags such as `Environment`, `Project`, `CostCenter`, and `Owner` are handled in **Module 03 — Tag Governance Policy**.
+Governance and cost-allocation tags such as `Environment`, `Project`, `CostCenter`, and `Owner` are handled by **Module 03 — Tag Governance Policy**.
 
 ---
 
@@ -108,23 +159,23 @@ Governance and cost-allocation tags such as `Environment`, `Project`, `CostCente
 
 ### Control Plane
 
-| Component          | Name                             |
-| ------------------ | -------------------------------- |
-| Resource Group     | `rg-ops-guardrails`              |
-| Automation Account | `aa-ops-guardrails`              |
-| Runbook            | `rb-stop-tagged-vms`             |
-| Schedule           | `sched-stop-vms-0200`            |
-| Authentication     | System-assigned Managed Identity |
+| Component          | Name                             | Ownership |
+| ------------------ | -------------------------------- | --------- |
+| Resource Group     | `rg-ops-guardrails`              | Shared Foundation — external to Module 02 |
+| Automation Account | `aa-ops-guardrails`              | Module 02 |
+| Runbook            | `rb-stop-tagged-vms`             | Module 02 |
+| Schedule           | `sched-stop-vms-0200`            | Module 02 |
+| Authentication     | System-assigned Managed Identity | Module 02 |
 
 ### Target Scope
 
-| Component       | Name                                                                                                      |
-| --------------- | --------------------------------------------------------------------------------------------------------- |
-| Resource Group  | `rg-finops-lab`                                                                                           |
-| Proof VM        | `vm-finops-autostop-01`                                                                                   |
-| Operational tag | `AutoStop=0200`                                                                                           |
-| Governance tags | Added by Module 03: `Environment=Lab`, `Project=FinOpsGuardrails`, `CostCenter=FinOpsLab`, `Owner=Manuel` |
-| Public IP       | None                                                                                                      |
+| Component       | Name                                                                                                      | Ownership |
+| --------------- | --------------------------------------------------------------------------------------------------------- | --------- |
+| Resource Group  | `rg-finops-lab`                                                                                           | Shared Foundation — external to Module 02 |
+| Proof VM        | `vm-finops-autostop-01`                                                                                   | Temporary E2E fixture |
+| Operational tag | `AutoStop=0200`                                                                                           | Module 02 workload contract |
+| Governance tags | `Environment=Lab`, `Project=FinOpsGuardrails`, `CostCenter=FinOpsLab`, `Owner=Manuel`                    | Foundation / Module 03 governance |
+| Public IP       | None                                                                                                      | E2E fixture constraint |
 
 ---
 
@@ -134,14 +185,68 @@ Runbook file: [`infra/stop-tagged-vms.ps1`](./infra/stop-tagged-vms.ps1)
 
 The runbook performs these steps:
 
-1. Authenticates through `Connect-AzAccount -Identity`
-2. Retrieves VMs only from `rg-finops-lab`
-3. Filters VMs by `AutoStop=0200`
-4. Checks the VM runtime status through `Get-AzVM -Status`
-5. Validates `PowerState/running`
-6. Deallocates the VM through `Stop-AzVM -Force`
+1. Sets terminating error behavior for the automation
+2. Authenticates through `Connect-AzAccount -Identity`
+3. validates that Azure returned a usable subscription context
+4. retrieves VMs only from `rg-finops-lab`
+5. filters VMs by `AutoStop=0200`
+6. checks the VM runtime status through `Get-AzVM -Status`
+7. validates `PowerState/running`
+8. deallocates the VM through `Stop-AzVM -Force`
+9. throws on real failures so the Azure Automation job is marked as failed
 
 The script uses the technical status code `PowerState/running` instead of the display value `VM running`.
+
+A healthy run with no matching VM is valid and should end with:
+
+```text
+Connected. Subscription: <subscription-id>
+Target Resource Group: rg-finops-lab
+Found 0 VM(s) in rg-finops-lab with tag AutoStop=0200
+AutoStop guardrail completed successfully.
+```
+
+---
+
+## Deployment Behavior
+
+`scripts/deploy.sh` is designed to be repeatable.
+
+It:
+
+* validates both shared Foundation Resource Groups instead of creating them
+* creates or validates the Automation Account
+* enables and resolves the system-assigned Managed Identity
+* creates or reconciles the custom role from the repository definition
+* validates the expected role scope and required VM actions
+* creates the Managed Identity role assignment if missing
+* creates or updates and publishes the Runbook
+* creates the schedule if missing
+* validates an existing schedule against the expected configuration
+* creates the Runbook-to-schedule link if missing
+* preserves shared Foundation ownership boundaries
+
+---
+
+## Cleanup Behavior
+
+`scripts/cleanup.sh` removes only Module 02-owned resources.
+
+It removes, when present:
+
+* the Managed Identity custom-role assignment at `rg-finops-lab`
+* the legacy subscription-level `Virtual Machine Contributor` assignment from older V1 deployments
+* the Automation Account and the contained Runbook, schedule, and job-schedule link
+* the custom role definition
+
+It explicitly preserves:
+
+```text
+rg-ops-guardrails
+rg-finops-lab
+```
+
+The cleanup logic performs existence checks instead of suppressing arbitrary Azure CLI failures. A real CLI, authentication, or authorization error should stop the cleanup instead of being silently ignored.
 
 ---
 
@@ -223,7 +328,7 @@ Managed Identity deallocates the VM
 Custom RBAC limits the blast radius
 ```
 
-Module 03 adds **governance context** to the same target environment:
+Module 03 adds **governance context** to the same shared target environment:
 
 ```text
 rg-finops-lab has governance tags
@@ -235,7 +340,9 @@ VM receives Environment, Project, CostCenter, and Owner
 AutoStop automation still works
 ```
 
-Together, both modules form a stronger FinOps guardrail pattern:
+The Resource Group and its baseline governance tags belong to the shared Foundation rather than being independently owned by either Module 02 or Module 03.
+
+Together, the modules form a stronger FinOps guardrail pattern:
 
 ```text
 Governance context
@@ -243,6 +350,19 @@ Governance context
 + Least-privilege execution
 + Proof-based validation
 ```
+
+---
+
+## Relation to Module 05
+
+Module 05 implements a separate event-driven governance capability for resource attribution using Azure Activity Log, Event Grid, and Azure Functions.
+
+It complements Module 02 rather than replacing the nightly AutoStop control.
+
+The combined environment can therefore provide both:
+
+* scheduled cost-control automation through Module 02
+* event-driven resource attribution through Module 05
 
 ---
 
@@ -255,12 +375,18 @@ Governance context
    Even an appropriate role can be too broad if it is assigned at subscription scope.
 
 3. **A working automation is not automatically a governance-ready control.**
-   Scoped permissions, custom roles, validation, and proof artifacts are part of the engineering work.
+   Scoped permissions, custom roles, validation, ownership boundaries, and proof artifacts are part of the engineering work.
 
-4. **Use `PowerState` codes for automation logic.**
+4. **A successful job status is not enough evidence by itself.**
+   Runbooks should use terminating errors and validate required Azure context so real failures cannot silently end as `Completed`.
+
+5. **Resource ownership must be explicit in Brownfield environments.**
+   Shared Foundation scopes must not be created or destroyed by individual child modules.
+
+6. **Use `PowerState` codes for automation logic.**
    `PowerState/running` is more reliable for technical validation than the display value `VM running`.
 
-5. **Operational tags and governance tags serve different purposes.**
+7. **Operational tags and governance tags serve different purposes.**
    `AutoStop=0200` controls automation behavior.
    `Environment`, `Project`, `CostCenter`, and `Owner` describe the resource.
 
@@ -268,22 +394,10 @@ Governance context
 
 ## Evolution Path
 
-Module 02 focuses on least-privilege VM AutoStop automation.
+Module 02 now represents the hardened scheduled AutoStop control with explicit ownership, least-privilege RBAC, fail-fast execution, and repeatable deployment.
 
-The next implemented step is covered in [`Module 03 — Tag Governance Policy`](../03-tag-governance-policy):
+The next architectural step for this repository is not to add more ownership to Module 02, but to stabilize the remaining modules around the same shared Foundation model.
 
-* Azure Policy-based tag governance
-* automatic inheritance of governance tags from `rg-finops-lab`
-* validation with the same AutoStop VM scenario
-* proof that the VM remains tagged after deallocation
+After the Brownfield modules have been validated together, the environment can be migrated to Terraform using explicit ownership and import boundaries.
 
-Future iterations may move the guardrail toward an event-driven design:
-
-* Azure Activity Log
-* Event Grid
-* Azure Functions or Durable Functions
-* Dynamic AutoStop timing
-* Extended logging and auditability
-* automatic `CreatedBy` tagging
-
-> Started as cost automation. Evolved into a governance control.
+> Started as cost automation. Evolved into a governance control. Hardened for Brownfield migration.
