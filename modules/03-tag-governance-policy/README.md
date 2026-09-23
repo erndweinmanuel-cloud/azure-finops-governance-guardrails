@@ -2,134 +2,78 @@
 
 ## Azure Policy-Based Tag Inheritance for FinOps Guardrails
 
-This module extends the FinOps Guardrails Evolution by adding automated tag governance to the dedicated FinOps lab resource group.
+Module 03 applies tag inheritance guardrails to the shared FinOps lab scope. Resources created in `rg-finops-lab` inherit missing governance tags from the Resource Group through Azure Policy.
 
-Module 02 introduced a least-privilege AutoStop guardrail: a system-assigned Managed Identity uses a custom RBAC role on Resource Group scope to deallocate virtual machines tagged with `AutoStop=0200`.
-
-Module 03 adds the next governance layer: resources inside `rg-finops-lab` automatically inherit standard governance tags from the Resource Group using Azure Policy.
-
-This module represents **Part 2** of the FinOps Guardrails Evolution:
-
-> A VM is not only controlled by an AutoStop guardrail, but also automatically classified with governance tags for environment, project, cost allocation, and ownership.
+The module consumes the shared Foundation Resource Group and its tag values. It does **not** own, create, delete, or update the Resource Group itself.
 
 ---
 
 ## What It Does
 
-This module:
+Module 03:
 
-* creates or updates the dedicated lab resource group `rg-finops-lab`
-* applies central governance tags to the Resource Group
-* assigns Azure Policy definitions to inherit missing tags from the Resource Group
-* uses system-assigned Managed Identities for the policy assignments
-* grants the policy identities `Tag Contributor` only on `rg-finops-lab`
-* validates the tagging behavior with the AutoStop VM scenario from Module 02
+* validates that shared Resource Group `rg-finops-lab` exists
+* validates that the Foundation tags `Environment`, `Project`, `CostCenter`, and `Owner` exist on the Resource Group
+* assigns the built-in Azure Policy `Inherit a tag from the resource group if missing`
+* creates one policy assignment per governance tag
+* uses a system-assigned Managed Identity on each assignment
+* grants each policy identity `Tag Contributor` only on `rg-finops-lab`
+* validates existing assignments semantically instead of treating existence as correctness
+* fails on real Azure CLI, RBAC, identity, or configuration errors
 
----
-
-## Governance Tags
-
-The following tags are applied centrally to the Resource Group:
-
-```text
-Environment = Lab
-Project     = FinOpsGuardrails
-CostCenter  = FinOpsLab
-Owner       = Manuel
-```
-
-These tags describe the resource from a governance and cost-management perspective.
-
-They answer questions such as:
-
-* Which environment does this resource belong to?
-* Which project does it support?
-* Which cost bucket should it be associated with?
-* Who is responsible for it?
+The operational `AutoStop=0200` tag belongs to Module 02 and is intentionally separate from these governance tags.
 
 ---
 
-## Operational Tag
+## Ownership Boundary
 
-The AutoStop automation from Module 02 uses a separate operational tag:
+### Shared Foundation — external to Module 03
 
-```text
-AutoStop = 0200
-```
-
-This tag controls automation behavior.
-
-Governance tags describe the resource.
-The `AutoStop` tag controls what the runbook should do with it.
+Module 03 consumes but does not own:
 
 ```text
-Governance tags:
-Environment
-Project
-CostCenter
-Owner
-
-Operational tag:
-AutoStop
+rg-finops-lab
+├─ Environment = Lab
+├─ Project = FinOpsGuardrails
+├─ CostCenter = FinOpsLab
+└─ Owner = Manuel
 ```
+
+The Resource Group and central tag values will later be represented in a dedicated Foundation area of the repository. Until then, Module 03 treats them as external dependencies.
+
+### Module 03 owns
+
+```text
+inherit-environment-tag
+inherit-project-tag
+inherit-costcenter-tag
+inherit-owner-tag
+```
+
+Each assignment owns its own system-assigned Managed Identity. Module 03 also owns the corresponding `Tag Contributor` role assignment for that identity at `rg-finops-lab` scope.
+
+The built-in Azure Policy definition itself is Microsoft-owned and is not created or deleted by this module.
 
 ---
 
-## Why This Matters
+## Policy Assignments
 
-Cloud resources should not be anonymous.
+| Assignment | Inherited tag |
+| --- | --- |
+| `inherit-environment-tag` | `Environment` |
+| `inherit-project-tag` | `Project` |
+| `inherit-costcenter-tag` | `CostCenter` |
+| `inherit-owner-tag` | `Owner` |
 
-A virtual machine can create cost, operational responsibility, and security impact. Without tags, it becomes harder to understand what a resource belongs to, who owns it, and which controls should apply.
-
-This module separates two concerns:
-
-```text
-Governance context
-        ↓
-Environment, Project, CostCenter, Owner
-
-Operational control
-        ↓
-AutoStop=0200
-```
-
-This makes the resource both understandable and controllable.
-
----
-
-## Relation to Module 02
-
-Module 02 controls **what happens to the VM**:
+All four assignments use:
 
 ```text
-AutoStop=0200
-        ↓
-Runbook detects the VM
-        ↓
-Managed Identity deallocates the VM
-        ↓
-Custom RBAC limits the blast radius
-```
-
-Module 03 adds **governance context** to the same target environment:
-
-```text
-rg-finops-lab has governance tags
-        ↓
-Azure Policy inherits missing tags to resources
-        ↓
-VM receives Environment, Project, CostCenter, and Owner
-        ↓
-AutoStop automation still works
-```
-
-Together, both modules form a stronger FinOps guardrail pattern:
-
-```text
-Governance context
-+ Operational control
-+ Least-privilege execution
-+ Proof-based validation
+Policy: Inherit a tag from the resource group if missing
+Identity: SystemAssigned
+Location: westeurope
+EnforcementMode: Default
+RBAC: Tag Contributor
+Scope: /subscriptions/<subscription-id>/resourceGroups/rg-finops-lab
 ```
 
 ---
@@ -138,118 +82,84 @@ Governance context
 
 ```mermaid
 flowchart LR
-    RG[Resource Group<br/>rg-finops-lab] --> RGT[Central Governance Tags<br/>Environment<br/>Project<br/>CostCenter<br/>Owner]
-
-    RGT --> AP[Azure Policy Assignments<br/>Inherit missing tags<br/>from Resource Group]
-
-    AP --> VM[VM<br/>vm-finops-autostop-01]
-
-    VM --> VT[Inherited Governance Tags<br/>Environment=Lab<br/>Project=FinOpsGuardrails<br/>CostCenter=FinOpsLab<br/>Owner=Manuel]
-
-    VM --> OT[Operational Tag<br/>AutoStop=0200]
-
-    OT --> RB[Module 02 Runbook<br/>rb-stop-tagged-vms]
-
-    RB --> DEALLOC[VM Deallocated<br/>Tags Retained]
+    F[Shared Foundation<br/>rg-finops-lab] --> T[Foundation Tags<br/>Environment / Project / CostCenter / Owner]
+    T --> P[Module 03<br/>Tag Inheritance Policy Assignments]
+    P --> MI[System-Assigned Managed Identities]
+    MI --> RBAC[Tag Contributor<br/>rg-finops-lab scope]
+    P --> R[Resources created in rg-finops-lab]
+    R --> IT[Inherited Governance Tags]
 ```
 
 ---
 
-## Components
+## Brownfield Hardening — September 2026
 
-### Target Resource Group
+Before Terraform migration, the live implementation was compared with the repository.
 
-| Component      | Name                |
-| -------------- | ------------------- |
-| Resource Group | `rg-finops-lab`     |
-| Location       | `westeurope`        |
+The live state was healthy:
 
-### Governance Tags
+* all four expected Foundation tags existed on `rg-finops-lab`
+* all four Module 03 policy assignments existed
+* each assignment referenced the expected built-in policy definition
+* each assignment used the correct `tagName`
+* all four assignments had a system-assigned Managed Identity
+* each identity had `Tag Contributor` at exactly `rg-finops-lab` scope
+* `Location` was `westeurope`
+* `EnforcementMode` was `Default`
 
-| Tag          | Value               | Purpose                       |
-| ------------ | ------------------- | ----------------------------- |
-| `Environment` | `Lab`             | Environment classification    |
-| `Project`     | `FinOpsGuardrails` | Project assignment            |
-| `CostCenter`  | `FinOpsLab`       | Cost allocation               |
-| `Owner`       | `Manuel`          | Responsibility / ownership    |
+The repository implementation still had ownership and reliability problems and was hardened:
 
-### Policy Assignments
+* Module 03 no longer creates or updates `rg-finops-lab`
+* Module 03 no longer sets Foundation tag values
+* shared Foundation dependencies are validated instead of silently created
+* existing policy assignments are checked for semantic drift
+* RBAC is explicitly checked and confirmed
+* broad `2>/dev/null || true` error swallowing was removed
+* deployment is repeatable against an already-correct live environment
+* cleanup is ownership-aware and preserves the shared Foundation
 
-| Assignment Name           | Purpose                                                 |
-| ------------------------- | ------------------------------------------------------- |
-| `inherit-environment-tag` | Inherits the `Environment` tag from the Resource Group   |
-| `inherit-project-tag`     | Inherits the `Project` tag from the Resource Group       |
-| `inherit-costcenter-tag`  | Inherits the `CostCenter` tag from the Resource Group    |
-| `inherit-owner-tag`       | Inherits the `Owner` tag from the Resource Group         |
+This prevents Terraform from later importing an ambiguous ownership model.
 
-Each policy assignment uses a system-assigned Managed Identity.
+---
 
-The policy identities are granted:
+## E2E Validation — 23 September 2026
+
+A temporary Storage Account was created in `rg-finops-lab` without supplying governance tags.
+
+After creation, the resource contained:
 
 ```text
-Tag Contributor
+Environment = Lab
+Project = FinOpsGuardrails
+CostCenter = FinOpsLab
+Owner = Manuel
 ```
 
-only on:
+This proves the complete Module 03 path:
 
 ```text
-/subscriptions/<subscription-id>/resourceGroups/rg-finops-lab
+Resource created without governance tags
+        ↓
+Azure Policy assignments evaluate the resource
+        ↓
+Managed Identities apply the modify effect
+        ↓
+Missing governance tags are inherited from rg-finops-lab
 ```
 
----
-
-## Proof Scenario
-
-The proof builds on the Module 02 AutoStop scenario.
-
-1. `rg-finops-lab` has central governance tags
-2. Azure Policy assignments inherit missing tags from the Resource Group
-3. VM `vm-finops-autostop-01` is created with the operational tag `AutoStop=0200`
-4. The VM automatically receives the governance tags
-5. The VM has no public IP
-6. The Module 02 AutoStop runbook deallocates the VM
-7. The VM remains tagged after deallocation
-
-The proof demonstrates that governance tagging and operational automation can work together.
-
----
-
-## Proof Artifacts
-
-### CLI Evidence
-
-| Step | What is proven | Artifact |
-| ---: | -------------- | -------- |
-| 1 | Resource Group has central governance tags | [`01_rg-tags.jsonc`](./proofs/cli/01_rg-tags.jsonc) |
-| 2 | Azure Policy assignments exist | [`02_policy-assignments.jsonc`](./proofs/cli/02_policy-assignments.jsonc) |
-| 3 | VM is running, has no public IP, and inherited governance tags | [`03_vm-before-running-no-public-ip-inherited-tags.jsonc`](./proofs/cli/03_vm-before-running-no-public-ip-inherited-tags.jsonc) |
-
-### Screenshots
-
-| Step | What is proven | Screenshot |
-| ---: | -------------- | ---------- |
-| 1 | VM is running, has no public IP, has `AutoStop=0200`, and inherited governance tags | [`01_vm-running-no-public-ip-inherited-tags.png`](./proofs/screenshots/01_vm-running-no-public-ip-inherited-tags.png) |
-| 2 | VM is deallocated and all tags are retained | [`02_vm-deallocated-tags-retained.png`](./proofs/screenshots/02_vm-deallocated-tags-retained.png) |
-
-### 01 — VM Running with No Public IP and Inherited Tags
-
-![VM Running with No Public IP and Inherited Tags](./proofs/screenshots/01_vm-running-no-public-ip-inherited-tags.png)
-
-### 02 — VM Deallocated with Tags Retained
-
-![VM Deallocated with Tags Retained](./proofs/screenshots/02_vm-deallocated-tags-retained.png)
+The test resource also received `CreatedAt`, `CreatedBy`, and `CreatedByType`. Those attribution tags are produced by the separate event-driven attribution module and are not owned by Module 03.
 
 ---
 
 ## Deployment
 
-Run from the repository root using Git Bash:
+From the repository root:
 
 ```bash
 bash modules/03-tag-governance-policy/scripts/deploy.sh
 ```
 
-Or from PowerShell:
+From PowerShell:
 
 ```powershell
 & "C:\Program Files\Git\bin\bash.exe" ".\modules\03-tag-governance-policy\scripts\deploy.sh"
@@ -257,11 +167,70 @@ Or from PowerShell:
 
 The deployment script:
 
-* creates or updates `rg-finops-lab`
-* applies central governance tags to the Resource Group
-* creates Azure Policy assignments for tag inheritance
-* enables system-assigned Managed Identities on the assignments
-* grants `Tag Contributor` on Resource Group scope
+1. resolves the active subscription
+2. validates the shared Foundation Resource Group
+3. validates that all four required Foundation tag names have values
+4. resolves the Microsoft built-in inheritance policy
+5. creates missing Module 03 assignments
+6. semantically validates existing assignments
+7. resolves each policy Managed Identity
+8. creates missing `Tag Contributor` RBAC at the exact lab scope
+9. confirms RBAC after creation or discovery
+10. prints the resulting Module 03 policy state
+
+A configuration mismatch is treated as drift and stops the deployment instead of being silently overwritten.
+
+---
+
+## Cleanup
+
+```bash
+bash modules/03-tag-governance-policy/scripts/cleanup.sh
+```
+
+Cleanup removes only Module 03-owned resources:
+
+* the four exact `Tag Contributor` assignments belonging to the policy identities
+* the four Module 03 policy assignments and their system-assigned identities
+
+Cleanup explicitly preserves:
+
+```text
+rg-finops-lab
+Foundation governance tags
+Module 04 policy assignments
+Microsoft built-in policy definitions
+other resources in the shared Resource Group
+```
+
+The cleanup script performs explicit existence checks and does not suppress arbitrary Azure CLI failures.
+
+---
+
+## Relation to Other Modules
+
+Module 02 uses the operational tag:
+
+```text
+AutoStop=0200
+```
+
+to control VM deallocation.
+
+Module 03 provides governance context:
+
+```text
+Environment
+Project
+CostCenter
+Owner
+```
+
+Module 04 adds the broader Azure Policy baseline at the same shared lab scope.
+
+Module 05 adds event-driven resource attribution such as `CreatedBy`, `CreatedByType`, and `CreatedAt`.
+
+The modules share a target environment but retain separate ownership boundaries.
 
 ---
 
@@ -271,50 +240,28 @@ The deployment script:
 modules/03-tag-governance-policy/
 ├── proofs/
 │   ├── cli/
-│   │   ├── 01_rg-tags.jsonc
-│   │   ├── 02_policy-assignments.jsonc
-│   │   └── 03_vm-before-running-no-public-ip-inherited-tags.jsonc
 │   └── screenshots/
-│       ├── 01_vm-running-no-public-ip-inherited-tags.png
-│       └── 02_vm-deallocated-tags-retained.png
 ├── scripts/
-│   └── deploy.sh
+│   ├── deploy.sh
+│   └── cleanup.sh
 └── README.md
 ```
 
----
-
-## Key Learnings
-
-1. **Tags can separate governance context from automation behavior.**
-   `Environment`, `Project`, `CostCenter`, and `Owner` describe the resource.
-   `AutoStop=0200` controls automation behavior.
-
-2. **Tag governance becomes more valuable as environments grow.**
-   In a single lab, tags look simple. Across Lab, Dev, Prod, multiple projects, owners, and cost centers, they become essential.
-
-3. **Azure Policy can make governance automatic.**
-   Instead of relying on manual tagging, missing tags can be inherited from the Resource Group.
-
-4. **Guardrails work best together.**
-   Module 02 controls runtime cost. Module 03 adds resource context and accountability.
-
-5. **Governance should be validated with realistic scenarios.**
-   The final proof does not use an isolated test resource. It builds on the existing AutoStop VM scenario from Module 02.
+The existing proof artifacts from the original implementation remain in `proofs/`.
 
 ---
 
-## Next Evolution
+## Terraform Migration Classification
 
-The next step is to move from inherited static governance tags toward more dynamic accountability:
+For the later Brownfield Terraform migration:
 
-* Azure Activity Log
-* Event Grid
-* Azure Functions or Durable Functions
-* automatic `CreatedBy` tagging
-* person-based resource ownership tracking
+| Resource | Classification |
+| --- | --- |
+| `rg-finops-lab` | Foundation — IMPORT outside Module 03 |
+| Foundation governance tag values | Foundation ownership |
+| four tag inheritance policy assignments | Module 03 — IMPORT |
+| four policy system-assigned identities | Managed through policy assignments |
+| four `Tag Contributor` assignments | Module 03 — IMPORT |
+| Microsoft built-in policy definition | EXTERNAL |
 
-This would allow resources to be tagged not only by project or owner, but also by the identity that created them.
-
-> Module 02 controls what happens to the VM.
-> Module 03 explains what the VM belongs to.
+Terraform migration starts only after the remaining Brownfield modules and the shared Foundation ownership model have been stabilized.
