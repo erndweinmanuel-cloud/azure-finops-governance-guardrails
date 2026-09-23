@@ -109,6 +109,23 @@ This Brownfield repair is intentionally completed before Terraform import so tha
 
 ---
 
+## Brownfield E2E Validation — September 2026
+
+After the Brownfield repair, the full AutoStop flow was validated end to end:
+
+* temporary VM `vm-finops-autostop-01` was created in `rg-finops-lab`
+* the VM started in `PowerState/running` with `AutoStop=0200` and no public IP
+* the runbook discovered exactly one matching VM
+* the system-assigned Managed Identity authenticated with a valid subscription context
+* the custom least-privilege role successfully allowed VM status inspection and deallocation
+* the Automation job completed without exception or Error stream
+* the VM reached `VM deallocated`
+* the temporary VM, OS disk, and NIC were deleted after validation
+
+This confirms that the repaired Module 02 control works end to end without leaving test resources behind.
+
+---
+
 ## Why a Custom Role?
 
 Managed Identity removes secrets from code and runbooks. It does not remove the need for least-privilege access.
