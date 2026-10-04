@@ -1,10 +1,8 @@
 ﻿# Module 04 — Policy Baseline
 
-Preventive Azure Policy guardrails for lab environments.
+Preventive Azure Policy guardrails for the shared FinOps lab environment.
 
-This module is part of my **FinOps Guardrails Evolution** series.
-
-In this series, I show how I improve my Azure cost control step by step by combining monitoring, automation, tagging, and preventive governance.
+This module is part of the **FinOps Guardrails Evolution** project. Module 04 owns the custom policy definitions and policy assignments described below. It does **not** own the shared Resource Group or its Foundation tags.
 
 ## Evolution Context
 
@@ -12,43 +10,70 @@ The previous modules focused on visibility, automation, and accountability:
 
 - **Module 01:** Budget Alerts — detect cost thresholds early
 - **Module 02:** Nightly VM Auto-Stop — automatically stop tagged VMs with least privilege
-- **Module 03:** Tag Governance Policy — automatically inherit governance tags from the resource group
-- **Module 04:** Policy Baseline — prevent risky or expensive resources from being created
+- **Module 03:** Tag Governance Policy — inherit governance tags from the Resource Group
+- **Module 04:** Policy Baseline — prevent risky or expensive resources and audit governance metadata
 
 The key idea of this module:
 
-> Do not only react when costs already exist.
-> Prevent unnecessary cost risks before resources are created.
+> Do not only react when costs already exist. Prevent unnecessary cost risks before resources are created.
 
-## What This Module Does
+## Ownership Boundary
 
-This module creates a small Azure Policy baseline for the lab resource group.
+### Shared Foundation — not owned by Module 04
 
-The baseline includes:
+Module 04 consumes but does not create, update, or delete:
 
-- allowed VM sizes
-- denied public IP addresses
-- required AutoStop tag on VMs
-- audited governance tags
+- `rg-finops-lab`
+- Foundation governance tag values on `rg-finops-lab`
+- shared networking such as `vnet-finops-lab`
+- Module 03 tag-inheritance assignments
+- unrelated resources in the shared lab scope
 
-The policies are assigned at the scope of the lab resource group:
+The required Foundation governance tags are:
 
 ```text
-rg-finops-lab
+Environment
+Project
+CostCenter
+Owner
 ```
+
+The deployment script validates that the shared Resource Group exists and that these tags have values.
+
+### Module 04 — owned resources
+
+Module 04 owns four subscription-level custom policy definitions:
+
+```text
+finops-allowed-vm-sizes
+finops-deny-public-ip
+finops-require-vm-autostop
+finops-audit-governance-tags
+```
+
+and four assignments on `rg-finops-lab`:
+
+```text
+allowed-vm-sizes
+deny-public-ip
+require-autostop-tag
+audit-governance-tags
+```
+
+The cleanup script removes only these Module 04 assignments and definitions. It preserves the shared Foundation and unrelated policy assignments.
 
 ## Guardrails
 
-| Guardrail | Effect | Purpose |
-|---|---:|---|
-| Allow only approved VM sizes | Deny | Prevent oversized or expensive VMs in the lab |
-| Deny public IP addresses | Deny | Avoid unnecessary public exposure |
-| Require AutoStop tag on lab VMs | Deny | Ensure VMs can be handled by the AutoStop automation |
-| Audit missing governance tags | Audit | Detect resources without required cost and ownership metadata |
+| Guardrail | Assignment | Effect | Purpose |
+|---|---|---:|---|
+| Allow only approved VM sizes | `allowed-vm-sizes` | Deny | Prevent oversized or expensive VMs in the lab |
+| Deny public IP addresses | `deny-public-ip` | Deny | Avoid unnecessary public exposure |
+| Require AutoStop tag on lab VMs | `require-autostop-tag` | Deny | Ensure new VMs meet the AutoStop contract |
+| Audit missing governance tags | `audit-governance-tags` | Audit | Detect resources without required cost and ownership metadata |
 
 ## Allowed VM Sizes
 
-For this lab, only small VM sizes are allowed:
+Only these VM sizes are allowed:
 
 ```text
 Standard_B1s
@@ -57,233 +82,296 @@ Standard_B2s
 
 Everything else is denied by policy.
 
-This is intentional.
+## AutoStop Requirement
 
-A lab environment should allow learning and testing, but it should not allow accidental cost explosions.
-
-## Extreme VM Size Test
-
-For the proof run, I intentionally tested an oversized VM deployment:
-
-```text
-Standard_M416ms_v2
-```
-
-The result:
-
-```text
-RequestDisallowedByPolicy
-```
-
-The deployment was blocked by the policy:
-
-```text
-finops-allowed-vm-sizes
-```
-
-The evaluated policy expression showed:
-
-```text
-expression: Microsoft.Compute/virtualMachines/sku.name
-expressionValue: Standard_M416ms_v2
-targetValue:
-  - Standard_B1s
-  - Standard_B2s
-operator: NotIn
-effect: Deny
-```
-
-The verification confirmed that no VM resource was created:
-
-```json
-[]
-```
-
-This is the difference between reactive and preventive FinOps:
-
-- reactive: notice the cost later
-- preventive: block the risky resource before it exists
-
-## AutoStop Tag Requirement
-
-Module 02 introduced the operational tag:
+VMs must carry:
 
 ```text
 AutoStop=0200
 ```
 
-This tag is used by the Automation Runbook to deallocate VMs.
+Module 02 consumes the same operational tag when selecting VMs for scheduled deallocation.
 
-Module 04 now makes this operational requirement enforceable.
+## Governance Tag Audit
 
-A VM without the required AutoStop tag is denied.
+The audit policy checks for:
 
-Proof result:
+```text
+Environment
+Project
+CostCenter
+Owner
+```
+
+The effect is `Audit`, so the policy records drift without blocking deployment.
+
+Module 03 and Module 04 intentionally have different responsibilities:
+
+- Module 03 inherits missing governance tags for supported new resources.
+- Module 04 reports resources that are still missing one or more required governance tags.
+
+Existing Brownfield resources can therefore remain non-compliant until they are explicitly remediated.
+
+## Brownfield Hardening
+
+The original Module 04 deployment mixed module ownership with shared Foundation ownership. It created or updated `rg-finops-lab` and wrote the central Resource Group tags.
+
+The hardened deployment no longer does that.
+
+Current deployment behavior:
+
+1. Validate the active Azure subscription.
+2. Validate that `rg-finops-lab` already exists.
+3. Validate that the four required Foundation tag values exist.
+4. Validate each existing custom policy definition semantically against the JSON source in `infra/`.
+5. Create a custom policy definition only when it is missing.
+6. Validate each existing assignment for display name, definition ID, enforcement mode, parameters, and scope.
+7. Create an assignment only when it is missing.
+8. Fail on unexpected drift instead of silently overwriting a healthy or changed live configuration.
+
+This makes configuration drift visible before Terraform import.
+
+### Git Bash / MSYS handling
+
+Azure resource IDs beginning with `/subscriptions/...` can be rewritten by Git Bash/MSYS into Windows paths.
+
+The hardened script avoids this in two ways:
+
+- Azure CLI calls that use Azure resource IDs run with `MSYS_NO_PATHCONV=1`.
+- Python semantic validation receives primitive values such as subscription ID and resource names and constructs Azure resource IDs internally.
+
+This prevents false drift such as:
+
+```text
+C:/Program Files/Git/subscriptions/...
+```
+
+being compared with the real Azure resource ID:
+
+```text
+/subscriptions/...
+```
+
+## Deployment
+
+From PowerShell:
+
+```powershell
+& "C:\Program Files\Git\bin\bash.exe" modules/04-policy-baseline/scripts/deploy.sh
+```
+
+Syntax check:
+
+```powershell
+& "C:\Program Files\Git\bin\bash.exe" -n modules/04-policy-baseline/scripts/deploy.sh
+& "C:\Program Files\Git\bin\bash.exe" -n modules/04-policy-baseline/scripts/cleanup.sh
+```
+
+Do not run `cleanup.sh` as part of normal validation. It exists to define the ownership boundary and deliberately removes Module 04 resources.
+
+## Brownfield Validation — 2026-10-04
+
+### Deployment validation
+
+The hardened deployment was run against the existing Azure environment.
+
+Results:
+
+- shared Resource Group found
+- Foundation governance tags validated
+- all four custom definitions already existed
+- all four custom definitions matched the repository definitions
+- all four assignments already existed
+- all four assignments matched the expected definition, scope, enforcement mode, and parameters
+- no functional Module 04 configuration drift was found
+- shared Foundation resources were preserved
+
+## End-to-End Validation — 2026-10-04
+
+### Deny public IP
+
+Test resource:
+
+```text
+pip-m04-deny-test
+```
+
+Expected result:
 
 ```text
 RequestDisallowedByPolicy
 ```
 
-Policy:
+Observed policy:
 
 ```text
-finops-require-vm-autostop
-```
-
-This ensures that newly created lab VMs can be picked up by the AutoStop process.
-
-## Public IP Deny
-
-The policy baseline also denies public IP resources in the lab.
-
-Policy:
-
-```text
+deny-public-ip
 finops-deny-public-ip
 ```
 
-Reason:
-
-A small lab environment should not expose resources publicly unless there is a specific and reviewed reason.
-
-This guardrail reduces unnecessary attack surface and avoids accidental public exposure.
-
-## Governance Tag Audit
-
-Module 03 introduced inherited governance tags:
+A follow-up lookup returned:
 
 ```text
-Environment=Lab
-Project=FinOpsGuardrails
-CostCenter=FinOpsLab
-Owner=Manuel
+ResourceNotFound
 ```
 
-Module 04 adds an audit policy for missing governance tags.
+No Public IP was created.
 
-This does not block deployments by default.
+### Require AutoStop tag
 
-Instead, it helps detect resources that are missing important cost and ownership metadata.
-
-## How the Modules Work Together
+Test VM:
 
 ```text
-Module 01:
-Budget alerts detect cost thresholds.
-
-Module 02:
-VMs with AutoStop=0200 are automatically deallocated.
-
-Module 03:
-Resources inherit governance tags from the resource group.
-
-Module 04:
-Risky resources are blocked before they are created.
+vm-m04-autostop-deny
 ```
 
-In short:
+The VM used an allowed size and no Public IP, but intentionally omitted `AutoStop=0200`.
 
-- **Part 1:** The VM is automatically stopped.
-- **Part 2:** The VM becomes organizationally and financially attributable.
-- **Part 3:** Expensive or risky resources are prevented from being created in the first place.
+Azure Policy denied the deployment with:
 
-## Architecture
-
-```mermaid
-flowchart TD
-    User[User / Azure CLI] --> Deployment[Resource Deployment]
-
-    Deployment --> Policy[Azure Policy Baseline]
-
-    Policy --> SizeCheck{Allowed VM Size?}
-    Policy --> PublicIpCheck{Public IP?}
-    Policy --> AutoStopCheck{AutoStop Tag?}
-    Policy --> TagAudit{Governance Tags?}
-
-    SizeCheck -->|Allowed| DeployVM[VM Deployment allowed]
-    SizeCheck -->|Not allowed| DenySize[Denied: VM size not approved]
-
-    PublicIpCheck -->|No| Continue[Continue]
-    PublicIpCheck -->|Yes| DenyPublicIp[Denied: Public IP not allowed]
-
-    AutoStopCheck -->|AutoStop=0200| Continue
-    AutoStopCheck -->|Missing or wrong| DenyAutoStop[Denied: AutoStop tag required]
-
-    TagAudit -->|Present| AuditOk[Compliant]
-    TagAudit -->|Missing| AuditFinding[Audit finding]
-
-    DeployVM --> Module02[Module 02 AutoStop Runbook]
-    DeployVM --> Module03[Module 03 Tag Governance]
+```text
+RequestDisallowedByPolicy
 ```
 
-## Deployment
+Observed policy:
 
-Run from the repository root using Git Bash:
-
-```bash
-bash modules/04-policy-baseline/scripts/deploy.sh
+```text
+require-autostop-tag
+finops-require-vm-autostop
 ```
 
-Or from PowerShell:
+The evaluation showed that `tags[AutoStop]` did not exist.
 
-```powershell
-& "C:\Program Files\Git\bin\bash.exe" ".\modules\04-policy-baseline\scripts\deploy.sh"
+Follow-up checks confirmed:
+
+```text
+VM   -> ResourceNotFound
+NIC  -> not present
+Disk -> not present
 ```
+
+### Deny unapproved VM size
+
+Test VM:
+
+```text
+vm-m04-size-deny
+```
+
+The deployment included the required AutoStop tag but intentionally used:
+
+```text
+Standard_D2s_v5
+```
+
+Azure Policy denied the deployment with:
+
+```text
+RequestDisallowedByPolicy
+```
+
+The evaluation compared:
+
+```text
+expressionValue: Standard_D2s_v5
+targetValue:
+  - Standard_B1s
+  - Standard_B2s
+operator: NotIn
+```
+
+Observed policy:
+
+```text
+allowed-vm-sizes
+finops-allowed-vm-sizes
+```
+
+Follow-up checks confirmed that no VM, NIC, or disk remained.
+
+### Audit governance tags
+
+An on-demand Policy compliance scan was triggered for `rg-finops-lab`.
+
+The current audit result showed one compliant resource and seven non-compliant existing resources.
+
+The non-compliant Brownfield resources include:
+
+```text
+stfinopsfunc94976
+ASP-rgfinopslab-bcdf
+func-finops-attribution-92096
+Application Insights component
+Application Insights Smart Detection
+Event Grid system topic
+vnet-finops-lab
+```
+
+The resources are missing one or more of:
+
+```text
+Environment
+Project
+CostCenter
+Owner
+```
+
+This is a real Brownfield finding, not a Module 04 failure. Module 04 is correctly reporting historical tag drift.
+
+The existing Network Security Group:
+
+```text
+vm-finops-autostop-01NSG
+```
+
+was compliant with the governance tags but appears to be a leftover from the earlier Module 02 proof VM. Its attachment/usage should be verified before deletion.
 
 ## Proof Artifacts
 
-### CLI Proofs
+Historical proof artifacts remain under:
 
-| File | Description |
-|---|---|
-| [proofs/cli/01_rg-tags.jsonc](proofs/cli/01_rg-tags.jsonc) | Shows governance tags on the lab resource group |
-| [proofs/cli/02_policy-definitions.jsonc](proofs/cli/02_policy-definitions.jsonc) | Shows created custom policy definitions |
-| [proofs/cli/03_policy-assignments.jsonc](proofs/cli/03_policy-assignments.jsonc) | Shows policy assignments at resource group scope |
-| [proofs/cli/04_vm-allowed-b1s-autostop-no-public-ip.jsonc](proofs/cli/04_vm-allowed-b1s-autostop-no-public-ip.jsonc) | Shows an allowed VM with approved size, no public IP, AutoStop tag, and inherited governance tags |
-| [proofs/cli/05_deny-vm-without-autostop.txt](proofs/cli/05_deny-vm-without-autostop.txt) | Shows VM deployment denied because the AutoStop tag is missing |
-| [proofs/cli/05b_verify-no-autostop-vm-not-created.jsonc](proofs/cli/05b_verify-no-autostop-vm-not-created.jsonc) | Verifies that the denied VM was not created |
-| [proofs/cli/06_deny-vm-extreme-size.txt](proofs/cli/06_deny-vm-extreme-size.txt) | Shows oversized VM deployment denied by the allowed VM size policy |
-| [proofs/cli/06b_verify-extreme-size-vm-not-created.jsonc](proofs/cli/06b_verify-extreme-size-vm-not-created.jsonc) | Verifies that the denied oversized VM was not created |
-| [proofs/cli/06c_deny-vm-extreme-size-filtered.txt](proofs/cli/06c_deny-vm-extreme-size-filtered.txt) | Filtered output of the extreme VM size policy violation |
-| [proofs/cli/07_deny-public-ip.txt](proofs/cli/07_deny-public-ip.txt) | Shows public IP creation denied by policy |
-| [proofs/cli/07b_verify-public-ip-not-created.jsonc](proofs/cli/07b_verify-public-ip-not-created.jsonc) | Verifies that the denied public IP was not created |
+```text
+proofs/cli/
+proofs/screenshots/
+```
 
-### Screenshot Proofs
+They include earlier validation of:
 
-| File | Description |
-|---|---|
-| [proofs/screenshots/01_policy-baseline-deployment-success-rg-tags_subid-blurred.png](proofs/screenshots/01_policy-baseline-deployment-success-rg-tags_subid-blurred.png) | Deployment success and resource group tags |
-| [proofs/screenshots/02_policy-assignments-created.png](proofs/screenshots/02_policy-assignments-created.png) | Policy assignments created |
-| [proofs/screenshots/03_vm-allowed-b1s-autostop-no-public-ip.png](proofs/screenshots/03_vm-allowed-b1s-autostop-no-public-ip.png) | Allowed VM proof |
-| [proofs/screenshots/04_attempt-create-vm-without-autostop-tag.png](proofs/screenshots/04_attempt-create-vm-without-autostop-tag.png) | Attempted VM deployment without AutoStop tag |
-| [proofs/screenshots/05_deny-vm-without-autostop-tag-short.png](proofs/screenshots/05_deny-vm-without-autostop-tag-short.png) | Deny proof for missing AutoStop tag |
-| [proofs/screenshots/06_deny-vm-without-autostop-tag-details_no-subid.png](proofs/screenshots/06_deny-vm-without-autostop-tag-details_no-subid.png) | Detailed AutoStop policy deny proof |
-| [proofs/screenshots/07_deny-extreme-vm-size-policy_subid-redacted.png](proofs/screenshots/07_deny-extreme-vm-size-policy_subid-redacted.png) | Extreme VM size deny proof |
+- Resource Group governance tags
+- custom policy definitions
+- policy assignments
+- allowed B1s VM deployment
+- missing AutoStop denial
+- oversized VM denial
+- Public IP denial
+
+The 2026-10-04 Brownfield revalidation adds the current ownership, semantic drift, and live compliance findings documented above.
+
+## Terraform Direction
+
+Current classification:
+
+| Resource | Owner | Direction |
+|---|---|---|
+| `rg-finops-lab` | Foundation | IMPORT |
+| Foundation governance tags | Foundation | IMPORT / manage centrally |
+| `vnet-finops-lab` | Foundation / Networking | IMPORT |
+| four Module 04 custom policy definitions | Module 04 | IMPORT |
+| four Module 04 policy assignments | Module 04 | IMPORT |
+| E2E test resources | Temporary | TEMPORARY |
+
+Terraform work starts only after Modules 01–05 and the shared Foundation ownership have been stabilized.
 
 ## Key Learnings
 
-- Azure Policy is a strong preventive control for lab and sandbox environments.
-- Allow lists are useful when only a small set of safe resource configurations should be permitted.
-- Cost governance should not rely only on alerts and reports.
-- Tags provide context, but policies enforce rules.
-- Deny effects should be used carefully and tested in controlled scopes before broader rollout.
-- Preventive guardrails help reduce cost risk before resources exist.
+- Azure Policy can enforce preventive FinOps controls before resources incur cost.
+- Brownfield migration requires validating the live policy rule and parameters, not only checking that an object with the expected name exists.
+- Shared Resource Groups and central tags need a single clear Foundation owner.
+- A deploy script should not silently overwrite unexpected Brownfield drift.
+- Deny tests must verify that rejected resources were not partially created.
+- Audit findings are useful evidence of historical drift and should not automatically be remediated by the auditing module.
+- Git Bash/MSYS path conversion can corrupt Azure resource IDs passed to subprocesses and must be handled explicitly.
 
 ## Result
 
-This module turns the lab from a reactive environment into a more controlled and preventive one.
-
-Instead of only asking:
-
-```text
-Why did this resource cost money?
-```
-
-the environment can now also answer:
-
-```text
-Should this resource be allowed to exist here at all?
-```
-
-That is the core idea of this module.
-
+Module 04 now has a clear ownership boundary, drift-aware deployment behavior, ownership-safe cleanup behavior, and current end-to-end proof for all four guardrails.
