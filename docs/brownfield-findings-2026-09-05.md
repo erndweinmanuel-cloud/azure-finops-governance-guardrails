@@ -15,16 +15,18 @@ The following Module 02 resources still exist:
 - Schedule `sched-stop-vms-0200`
 - Runbook-to-Schedule link
 
-The following required resources are missing:
+The following required resources were missing during the initial Brownfield inspection:
 
 - Custom Role `FinOps VM AutoStop Operator`
 - Role Assignment for the Automation Account Managed Identity on `rg-finops-lab`
 
-The AutoStop runbook therefore no longer has the required permissions.
+The AutoStop runbook therefore no longer had the required permissions.
+
+Module 02 was subsequently repaired and validated end-to-end.
 
 ### False-positive Automation job
 
-The latest Automation job reported `Completed`, although the job stream contained:
+The initial Automation job reported `Completed`, although the job stream contained:
 
 ```text
 Connected. Subscription:
@@ -32,13 +34,13 @@ Connected. Subscription:
 Found 0 VM(s) in rg-finops-lab with tag AutoStop=0200
 ```
 
-This means job status alone is not sufficient to validate the guardrail. The runbook must fail explicitly when authentication, subscription context, resource discovery or VM deallocation fails.
+This showed that job status alone was not sufficient to validate the guardrail. The runbook was hardened to fail explicitly when authentication, subscription context, resource discovery, or VM deallocation fails.
 
 ### Root cause
 
 Azure Activity Log showed that `rg-finops-lab` was completely deleted on 2026-07-18.
 
-During deletion, the Module 02 RBAC assignment and other resource-group-scoped assignments were removed.
+During deletion, Module 02 RBAC assignments and other Resource-Group-scoped assignments were removed.
 
 The Resource Group was later recreated for subsequent modules, but not all previous dependencies were restored.
 
@@ -78,6 +80,211 @@ FOUNDATION
 
 Shared Foundation resources must have a single clear owner.
 
+## Module 03 validation
+
+Module 03 live state was healthy during Brownfield inspection:
+
+- all four tag-inheritance assignments existed
+- all assignments referenced the expected built-in inheritance policy
+- all four SystemAssigned identities existed
+- each identity had `Tag Contributor` at the exact `rg-finops-lab` scope
+
+The repository implementation was hardened so that Module 03 no longer owns the shared Resource Group or its tag values.
+
+A temporary storage-account test confirmed that new resources can receive:
+
+```text
+Environment=Lab
+Project=FinOpsGuardrails
+CostCenter=FinOpsLab
+Owner=Manuel
+```
+
+## Module 04 validation - 2026-10-04
+
+### Live policy state
+
+All four Module 04 custom policy definitions exist and match the repository definitions for their important semantics:
+
+```text
+finops-allowed-vm-sizes
+finops-deny-public-ip
+finops-require-vm-autostop
+finops-audit-governance-tags
+```
+
+All four assignments exist at `rg-finops-lab`:
+
+```text
+allowed-vm-sizes
+deny-public-ip
+require-autostop-tag
+audit-governance-tags
+```
+
+Expected assignment parameters were confirmed:
+
+```text
+allowed VM sizes: Standard_B1s, Standard_B2s
+VM size effect: Deny
+Public IP effect: Deny
+AutoStop tag: AutoStop=0200
+AutoStop effect: Deny
+Governance tag effect: Audit
+EnforcementMode: Default
+```
+
+No functional Module 04 configuration drift was found.
+
+### Ownership drift in repository implementation
+
+The original Module 04 deployment still created or updated the shared Resource Group and central governance tags.
+
+That behavior violated the Foundation ownership boundary.
+
+The hardened Module 04 deployment now:
+
+- validates `rg-finops-lab` instead of creating it
+- validates Foundation governance tags instead of writing them
+- validates existing custom policy definitions semantically
+- creates definitions only when missing
+- validates assignment scope, definition, parameters, display name, and enforcement mode
+- creates assignments only when missing
+- fails on unexpected drift instead of silently overwriting it
+
+The cleanup script removes only Module 04 assignments and custom definitions and preserves the shared Foundation and unrelated assignments.
+
+### Git Bash / MSYS path-conversion issue
+
+During hardening, the semantic assignment check initially reported false drift because Git Bash/MSYS rewrote Azure resource IDs passed to Python:
+
+```text
+/subscriptions/...
+```
+
+became:
+
+```text
+C:/Program Files/Git/subscriptions/...
+```
+
+The script was corrected so Python receives primitive values such as subscription ID and names and constructs Azure resource IDs internally.
+
+The corrected hardened deployment subsequently validated all definitions and assignments successfully.
+
+### Module 04 E2E results
+
+#### Public IP deny
+
+Creating:
+
+```text
+pip-m04-deny-test
+```
+
+was blocked with:
+
+```text
+RequestDisallowedByPolicy
+```
+
+by:
+
+```text
+deny-public-ip
+finops-deny-public-ip
+```
+
+A follow-up lookup returned `ResourceNotFound`.
+
+#### AutoStop requirement
+
+Creating:
+
+```text
+vm-m04-autostop-deny
+```
+
+without `AutoStop=0200` was blocked with `RequestDisallowedByPolicy`.
+
+Azure Policy identified:
+
+```text
+require-autostop-tag
+finops-require-vm-autostop
+```
+
+and evaluated the missing `tags[AutoStop]`.
+
+No VM, NIC, or disk remained.
+
+#### Allowed VM sizes
+
+Creating:
+
+```text
+vm-m04-size-deny
+```
+
+with `Standard_D2s_v5` and a valid AutoStop tag was blocked by:
+
+```text
+allowed-vm-sizes
+finops-allowed-vm-sizes
+```
+
+The policy evaluation compared `Standard_D2s_v5` against:
+
+```text
+Standard_B1s
+Standard_B2s
+```
+
+with operator `NotIn`.
+
+No VM, NIC, or disk remained.
+
+#### Governance tag audit
+
+A fresh Resource-Group policy scan returned one compliant and seven non-compliant resources for `audit-governance-tags`.
+
+The current non-compliant Brownfield resources are:
+
+- `stfinopsfunc94976`
+- `ASP-rgfinopslab-bcdf`
+- `func-finops-attribution-92096` Function App
+- `func-finops-attribution-92096` Application Insights component
+- `Application Insights Smart Detection`
+- Event Grid system topic `rg-finops-lab-30892968-5599-4372-bc1a-2229e2d9b3aa`
+- `vnet-finops-lab`
+
+The Storage Account, App Service Plan, Function App, Application Insights component, and Smart Detection Action Group currently have no governance tags.
+
+The Event Grid system topic and VNet contain attribution tags such as `CreatedAt`, `CreatedBy`, and `CreatedByType`, but are missing one or more required governance tags:
+
+```text
+Environment
+Project
+CostCenter
+Owner
+```
+
+This is historical tag drift. Module 04 is correctly detecting it.
+
+Do not remediate these resources from Module 04. Their ownership must be handled by Module 05 or the shared Foundation.
+
+### Orphan candidate from Module 02 proof
+
+The current inventory also contains:
+
+```text
+vm-finops-autostop-01NSG
+```
+
+The NSG has the expected governance and attribution tags, but the proof VM itself was deleted after the Module 02 E2E test.
+
+Before deleting the NSG, verify that it is not attached to any NIC or subnet.
+
 ## Live inventory
 
 ### rg-ops-guardrails
@@ -95,6 +302,7 @@ Shared Foundation resources must have a single clear owner.
 - `Application Insights Smart Detection` Action Group
 - Event Grid system topic for `rg-finops-lab`
 - `vnet-finops-lab`
+- `vm-finops-autostop-01NSG` — orphan candidate, verify before deletion
 
 ## Ownership direction
 
@@ -102,15 +310,18 @@ Shared Foundation resources must have a single clear owner.
 |---|---|---|
 | `rg-ops-guardrails` | Foundation | IMPORT |
 | `rg-finops-lab` | Foundation | IMPORT |
+| Foundation governance tags | Foundation | IMPORT / manage centrally |
 | `vnet-finops-lab` | Foundation / Networking | IMPORT |
 | `ag-budget-alerts` | Module 01 | IMPORT |
 | `aa-ops-guardrails` | Module 02 | IMPORT |
 | `rb-stop-tagged-vms` | Module 02 | IMPORT |
-| AutoStop Custom Role | Module 02 | RECREATE |
-| AutoStop Role Assignment | Module 02 | RECREATE |
+| AutoStop Custom Role | Module 02 | IMPORT |
+| AutoStop Role Assignment | Module 02 | IMPORT |
 | Proof VM | Temporary E2E | TEMPORARY |
-| Tag inheritance policies | Module 03 | IMPORT / validate |
-| Preventive policy baseline | Module 04 | IMPORT / validate |
+| `vm-finops-autostop-01NSG` | Module 02 proof artifact candidate | VERIFY / likely REMOVE |
+| Tag inheritance policies | Module 03 | IMPORT |
+| Module 04 custom policy definitions | Module 04 | IMPORT |
+| Module 04 policy assignments | Module 04 | IMPORT |
 | Function infrastructure | Module 05 | IMPORT / validate |
 | Event Grid attribution resources | Module 05 | IMPORT / validate |
 
@@ -129,13 +340,25 @@ Before Terraform migration:
 9. Run `terraform plan` and confirm there are no unexpected changes.
 10. Perform an end-to-end validation of the Terraform-managed platform.
 
+## Current status
+
+```text
+Module 01  validated
+Module 02  repaired and E2E validated
+Module 03  ownership-hardened and E2E validated
+Module 04  ownership-hardened and E2E validated
+Module 05  next
+Foundation extraction  after Module 05
+Terraform migration    after Foundation stabilization
+```
+
 ## Next step
 
-Start with Module 02:
+Inspect Module 05 read-only before changing anything:
 
-1. Update `cleanup.sh` so it never deletes `rg-finops-lab`.
-2. Restore the missing AutoStop custom role and RBAC assignment.
-3. Make the runbook fail fast on Azure errors.
-4. Validate dependencies after deployment.
-5. Run an end-to-end AutoStop test.
-6. Commit the repaired module before starting Terraform import work.
+1. inventory Function, Event Grid, identity, RBAC, and networking dependencies
+2. identify historical configuration drift
+3. define ownership boundaries against the shared Foundation
+4. harden deployment and cleanup behavior
+5. run current end-to-end attribution validation
+6. only then extract the shared Foundation and begin Terraform migration
