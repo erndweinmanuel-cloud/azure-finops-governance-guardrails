@@ -2,7 +2,7 @@
 
 ## Status
 
-**Completed**
+**Live Azure implementation validated end-to-end. Brownfield repository hardening in progress.**
 
 Module 05 extends the FinOps governance platform with event-driven resource attribution and validates the complete control chain in Azure.
 
@@ -808,15 +808,104 @@ The incident therefore becomes a practical motivation for the next stage of the 
 
 ---
 
+## Brownfield Revalidation - 2026-10-04
+
+The deployed Module 05 platform was revalidated against the current Azure state before Terraform migration.
+
+### Live infrastructure validation
+
+Confirmed healthy:
+
+- Storage Account `stfinopsfunc94976`
+- Flex Consumption plan `ASP-rgfinopslab-bcdf`
+- Function App `func-finops-attribution-92096`
+- Python 3.14 Function runtime
+- Application Insights
+- Event Grid system topic for `rg-finops-lab`
+- Event subscription `evsub-finops-resource-attribution`
+- Function system-assigned Managed Identity
+- custom role `FinOps Resource Attribution Tagger`
+- Function MI role assignment at `rg-finops-lab`
+- custom role `FinOps Lab VM Engineer`
+- engineer-group role assignment at `rg-finops-lab`
+- auditor-group `Reader` assignment at `rg-finops-lab`
+
+The Event Grid subscription listens for `Microsoft.Resources.ResourceWriteSuccess` and targets `func-finops-attribution-92096/functions/ResourceAttribution`.
+
+### Brownfield ownership boundary
+
+Shared Foundation owns:
+
+- `rg-finops-lab`
+- central governance tag values
+- `vnet-finops-lab`
+- `subnet-workload`
+
+The Entra groups `grp-azure-finops-lab-engineers` and `grp-azure-finops-lab-auditors` are external identity dependencies. Module 05 consumes them but must not delete them.
+
+Module 05 owns or manages:
+
+- Function App
+- Flex Consumption hosting plan
+- Function Storage Account
+- Application Insights
+- Event Grid system topic
+- Event Grid event subscription
+- custom Module 05 role definitions
+- Module 05 role assignments
+
+The Function system-assigned Managed Identity follows the Function App lifecycle. Service-generated Application Insights resources such as the Smart Detection action group must not be deleted blindly as independently owned Module 05 resources.
+
+### Repository reproducibility gap
+
+The live implementation is healthy, but `modules/05-event-driven-resource-attribution/scripts/` is currently empty.
+
+This is a configuration-management gap rather than functional Azure drift. Before Terraform migration, Module 05 deployment and cleanup behavior must be hardened so that shared Foundation resources are validated instead of owned, external Entra groups are consumed instead of created, and cleanup removes only Module 05-owned resources and assignments.
+
+### Current E2E validation
+
+A temporary Storage Account in `rg-finops-lab` received the four Module 03 governance tags and, after a fresh resource write, the Module 05 attribution tags:
+
+```text
+CreatedBy     = manuel.erndwein.cloud@outlook.com
+CreatedByType = User
+CreatedAt     = 2026-10-04 14:41:30.384716+00:00
+```
+
+A later resource update preserved both `CreatedBy` and `CreatedAt`. The temporary validation Storage Account was then deleted and its absence was confirmed with `ResourceNotFound`.
+
+### Operational lesson: Flex Consumption storage credentials
+
+During validation, Storage Account keys were rotated after a credential value appeared in terminal output. The initial rotation updated `AzureWebJobsStorage` but not `DEPLOYMENT_STORAGE_CONNECTION_STRING`.
+
+Event Grid then showed matched events with delivery failures while the Function did not execute for the affected event. After repairing the deployment-storage setting and restarting the Function, a fresh `ResourceWriteSuccess` event completed the full attribution pipeline successfully.
+
+This incident was introduced during validation and was not pre-existing Module 05 Brownfield drift. Flex Consumption key rotation must account for both runtime and deployment storage dependencies when connection-string authentication is used.
+
+---
+
 ## Why Terraform Is the Next Step
 
 Module 05 proves that the individual governance components work together.
 
-The next problem is no longer primarily how to build each component.
+Before Terraform takes ownership of the existing platform, the shared Foundation must have an explicit and stable ownership boundary.
 
-The next problem is how to manage the complete platform as a reproducible desired state.
+The next sequence is:
 
-Module 06 will therefore move the guardrail platform toward Terraform-managed infrastructure.
+```text
+Module 05 repository hardening
+        |
+        v
+Shared Foundation stabilization
+        |
+        v
+Brownfield ownership classification
+        |
+        v
+Terraform import and migration
+```
+
+After the Foundation is stabilized, the guardrail platform can move toward Terraform-managed infrastructure.
 
 Target:
 
@@ -872,8 +961,8 @@ The resulting platform now demonstrates:
 - End-to-end Azure validation
 - Cleanup and cost awareness
 
-**Module 05: Completed**
+**Module 05 live validation: Completed**
 
 Next:
 
-**Module 06 - Terraform Guardrail Platform**
+**Shared Foundation stabilization, followed by Terraform migration**

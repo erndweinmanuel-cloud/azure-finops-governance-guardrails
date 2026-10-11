@@ -285,6 +285,105 @@ The NSG has the expected governance and attribution tags, but the proof VM itsel
 
 Before deleting the NSG, verify that it is not attached to any NIC or subnet.
 
+## Module 05 validation - 2026-10-04
+
+### Live state
+
+The Module 05 event-driven attribution platform was inspected before repository hardening.
+
+Confirmed healthy:
+
+- Function App `func-finops-attribution-92096`
+- Flex Consumption plan `ASP-rgfinopslab-bcdf`
+- Storage Account `stfinopsfunc94976`
+- Application Insights
+- Event Grid system topic for `rg-finops-lab`
+- Event subscription `evsub-finops-resource-attribution`
+- Function system-assigned Managed Identity
+- custom role `FinOps Resource Attribution Tagger`
+- exact Function MI role assignment at `rg-finops-lab`
+- custom role `FinOps Lab VM Engineer`
+- engineer-group role assignment at `rg-finops-lab`
+- auditor-group `Reader` assignment at `rg-finops-lab`
+
+The Function runtime is Python 3.14 on Flex Consumption. The Event Grid subscription is provisioned successfully, listens for `Microsoft.Resources.ResourceWriteSuccess`, and targets `func-finops-attribution-92096/functions/ResourceAttribution`.
+
+### Identity and RBAC
+
+Current group-based assignments:
+
+```text
+grp-azure-finops-lab-engineers
+    -> FinOps Lab VM Engineer
+    -> rg-finops-lab
+
+grp-azure-finops-lab-auditors
+    -> Reader
+    -> rg-finops-lab
+```
+
+The Function Managed Identity has `FinOps Resource Attribution Tagger` at the exact `rg-finops-lab` scope. The custom tagger role contains only:
+
+```text
+Microsoft.Resources/tags/read
+Microsoft.Resources/tags/write
+```
+
+### Module 05 E2E
+
+A temporary Storage Account received the Module 03 governance tags. A fresh resource write then triggered the Module 05 attribution pipeline and produced:
+
+```text
+CreatedBy     = manuel.erndwein.cloud@outlook.com
+CreatedByType = User
+CreatedAt     = 2026-10-04 14:41:30.384716+00:00
+```
+
+A subsequent resource update confirmed that `CreatedBy` and `CreatedAt` remained unchanged. The temporary Storage Account was deleted after validation and `ResourceNotFound` confirmed cleanup.
+
+Module 05 is therefore functionally E2E healthy.
+
+### Validation-induced storage credential incident
+
+During validation, Storage Account keys were rotated. `AzureWebJobsStorage` was initially updated while `DEPLOYMENT_STORAGE_CONNECTION_STRING` still referenced the rotated key.
+
+Event Grid then showed matched events with delivery failures and the Function did not execute for the affected event. After repairing the deployment-storage connection and restarting the Function, a fresh resource write completed successfully.
+
+This incident was introduced during validation and is not classified as pre-existing Brownfield drift.
+
+### Repository reproducibility gap
+
+The live Module 05 implementation is healthy, but `modules/05-event-driven-resource-attribution/scripts/` is currently empty.
+
+The repository therefore cannot yet reproducibly reconcile or clean up the complete Module 05 infrastructure. This must be hardened before Shared Foundation stabilization and Terraform migration.
+
+### Ownership direction
+
+Shared Foundation owns:
+
+- `rg-finops-lab`
+- central governance tag values
+- `vnet-finops-lab`
+- `subnet-workload`
+
+External identity objects:
+
+- `grp-azure-finops-lab-engineers`
+- `grp-azure-finops-lab-auditors`
+
+Module 05 owns or manages:
+
+- Function infrastructure
+- Function Storage Account
+- Flex Consumption hosting plan
+- Application Insights
+- Event Grid system topic
+- Event Grid event subscription
+- custom Module 05 role definitions
+- Module 05 role assignments
+
+The Function Managed Identity follows the Function App lifecycle. Service-generated Application Insights resources must not be blindly deleted as independently owned resources.
+
 ## Live inventory
 
 ### rg-ops-guardrails
@@ -347,18 +446,20 @@ Module 01  validated
 Module 02  repaired and E2E validated
 Module 03  ownership-hardened and E2E validated
 Module 04  ownership-hardened and E2E validated
-Module 05  next
-Foundation extraction  after Module 05
+Module 05  live/E2E validated; repository hardening in progress
+Foundation extraction  after Module 05 repository hardening
 Terraform migration    after Foundation stabilization
 ```
 
 ## Next step
 
-Inspect Module 05 read-only before changing anything:
+Harden the Module 05 repository implementation:
 
-1. inventory Function, Event Grid, identity, RBAC, and networking dependencies
-2. identify historical configuration drift
-3. define ownership boundaries against the shared Foundation
-4. harden deployment and cleanup behavior
-5. run current end-to-end attribution validation
-6. only then extract the shared Foundation and begin Terraform migration
+1. create a deployment script that validates shared Foundation and external identity dependencies
+2. reconcile only Module 05-owned resources
+3. create a cleanup script with strict ownership boundaries
+4. validate both scripts without dismantling the healthy live platform
+5. update Module 05 documentation
+6. commit the hardened Module 05 implementation
+7. stabilize the shared Foundation
+8. only then begin Terraform Brownfield migration
