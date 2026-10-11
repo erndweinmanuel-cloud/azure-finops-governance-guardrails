@@ -80,6 +80,12 @@ FOUNDATION
 
 Shared Foundation resources must have a single clear owner.
 
+## Module 01 Foundation ownership hardening
+
+Module 01 previously still executed `az group create` for `rg-ops-guardrails`, which conflicted with the shared Foundation ownership model.
+
+The hardened deployment now validates that `rg-ops-guardrails` exists in `westeurope` and consumes it without creating, updating, or deleting the Resource Group.
+
 ## Module 03 validation
 
 Module 03 live state was healthy during Brownfield inspection:
@@ -275,15 +281,15 @@ Do not remediate these resources from Module 04. Their ownership must be handled
 
 ### Orphan candidate from Module 02 proof
 
-The current inventory also contains:
+The current inventory contained:
 
 ```text
 vm-finops-autostop-01NSG
 ```
 
-The NSG has the expected governance and attribution tags, but the proof VM itself was deleted after the Module 02 E2E test.
+The NSG belonged to the deleted Module 02 proof VM. A Foundation read-only check confirmed that it was attached to neither a NIC nor a subnet.
 
-Before deleting the NSG, verify that it is not attached to any NIC or subnet.
+The orphaned NSG was then deleted and a follow-up lookup returned `ResourceNotFound`.
 
 ## Module 05 validation - 2026-10-04
 
@@ -424,7 +430,7 @@ The Function Managed Identity follows the Function App lifecycle. Service-genera
 - `Application Insights Smart Detection` Action Group
 - Event Grid system topic for `rg-finops-lab`
 - `vnet-finops-lab`
-- `vm-finops-autostop-01NSG` — orphan candidate, verify before deletion
+- `vm-finops-autostop-01NSG` — removed after orphan verification
 
 ## Ownership direction
 
@@ -440,7 +446,7 @@ The Function Managed Identity follows the Function App lifecycle. Service-genera
 | AutoStop Custom Role | Module 02 | IMPORT |
 | AutoStop Role Assignment | Module 02 | IMPORT |
 | Proof VM | Temporary E2E | TEMPORARY |
-| `vm-finops-autostop-01NSG` | Module 02 proof artifact candidate | VERIFY / likely REMOVE |
+| `vm-finops-autostop-01NSG` | Module 02 proof artifact | REMOVED after attachment check |
 | Tag inheritance policies | Module 03 | IMPORT |
 | Module 04 custom policy definitions | Module 04 | IMPORT |
 | Module 04 policy assignments | Module 04 | IMPORT |
@@ -480,8 +486,7 @@ Stabilize the shared Foundation before Terraform migration:
 
 1. define explicit repository ownership for `rg-ops-guardrails`, `rg-finops-lab`, Foundation governance tags, `vnet-finops-lab`, and `subnet-workload`
 2. verify that child modules only consume shared Foundation resources
-3. inspect `vm-finops-autostop-01NSG` for attachments and remove it only if it is confirmed orphaned
-4. decide and execute the central remediation path for historical governance-tag gaps
-5. revalidate Modules 01-05 against the stabilized Foundation
-6. classify the final Brownfield inventory as IMPORT, RECREATE, EXTERNAL, or TEMPORARY
-7. only then begin Terraform import and migration
+3. decide and execute the central remediation path for historical governance-tag gaps
+4. revalidate Modules 01-05 against the stabilized Foundation
+5. classify the final Brownfield inventory as IMPORT, RECREATE, EXTERNAL, or TEMPORARY
+6. only then begin Terraform import and migration

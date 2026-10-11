@@ -22,6 +22,7 @@ This module is the first permanent safety net: **budget + notifications** so cos
 ## Prerequisites
 - Azure subscription
 - Azure Cloud Shell **Bash**
+- Shared Foundation Resource Group `rg-ops-guardrails` already exists
 - Permission to create action groups + budgets
 
 ## Deploy (Cloud Shell / Bash)
@@ -52,8 +53,9 @@ Email evidence (redacted screenshots):
 
 ## Notes
 
-- `rg-ops-guardrails` is shared infrastructure used by multiple guardrail modules.
-  Module 01 cleanup removes only the budget and Action Group and never deletes the shared resource group.
+- `rg-ops-guardrails` is shared Foundation infrastructure used by multiple guardrail modules.
+  Module 01 validates and consumes it but does not create, update, or delete it.
+  Module 01 cleanup removes only the budget and Action Group.
 
 - Action Groups require `--location global` (resource-type constraint).
 - Budget is created via ARM REST/Bicep because `az consumption budget` is preview and can be inconsistent depending on context.

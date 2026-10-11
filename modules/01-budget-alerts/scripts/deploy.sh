@@ -32,11 +32,29 @@ SUB_ID=$(az account show --query id -o tsv)
 echo "Deploying Module 01 - Budget Alerts..."
 echo
 
-echo "Creating or validating shared resource group: $RG_OPS"
-az group create \
+echo "Validating shared Foundation Resource Group: $RG_OPS"
+
+if ! az group show \
   --name "$RG_OPS" \
-  --location "$LOC" \
-  -o none
+  -o none; then
+  echo "ERROR: Shared Foundation Resource Group not found: $RG_OPS"
+  echo "Module 01 consumes this Resource Group but does not create or own it."
+  exit 1
+fi
+
+RG_LOCATION=$(az group show \
+  --name "$RG_OPS" \
+  --query location \
+  -o tsv)
+
+if [[ "${RG_LOCATION,,}" != "${LOC,,}" ]]; then
+  echo "ERROR: Shared Foundation Resource Group location drift detected."
+  echo "Expected: $LOC"
+  echo "Actual:   $RG_LOCATION"
+  exit 1
+fi
+
+echo "Found shared Foundation Resource Group: $RG_OPS ($RG_LOCATION)"
 
 echo "Creating or updating Action Group: $AG_NAME"
 az monitor action-group create \
@@ -123,4 +141,5 @@ echo "Amount:       $AMOUNT EUR / month"
 echo "Action Group: $AG_NAME"
 echo "Thresholds:   50% / 80% / 100%"
 echo
-echo "Shared resource group preserved: $RG_OPS"
+echo "Shared Foundation Resource Group preserved: $RG_OPS"
+echo "Module 01 does not create, update, or delete the shared Resource Group."
