@@ -104,18 +104,31 @@ FUNCTION_ENDPOINT_ID="$FUNCTION_ID/functions/$FUNCTION_NAME"
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
 
+validate_json_file() {
+  local json_file="$1"
+
+  python3 - "$json_file" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8-sig") as f:
+    json.load(f)
+PY
+}
+
 echo "Running local repository preflight..."
 
 for role_file in "$TAGGER_ROLE_FILE" "$ENGINEER_ROLE_FILE"; do
   [[ -f "$role_file" ]] || die "Role definition file not found: $role_file"
-  python3 -m json.tool "$role_file" >/dev/null     || die "Invalid JSON in role definition file: $role_file"
+  validate_json_file "$role_file"     || die "Invalid JSON in role definition file: $role_file"
 done
 
 for function_file in function_app.py host.json requirements.txt; do
   [[ -f "$FUNCTION_DIR/$function_file" ]]     || die "Required Function project file missing: $FUNCTION_DIR/$function_file"
 done
 
-python3 -m json.tool "$FUNCTION_DIR/host.json" >/dev/null   || die "Invalid JSON in Function host.json"
+validate_json_file "$FUNCTION_DIR/host.json"   || die "Invalid JSON in Function host.json"
 
 python3 - "$FUNCTION_DIR/function_app.py" <<'PY'
 import ast
