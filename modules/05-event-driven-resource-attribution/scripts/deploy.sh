@@ -293,7 +293,7 @@ create_or_validate_role_assignment() {
 
 echo
 echo "Reconciling Module 05 custom roles..."
-create_or_validate_role_definition "$TAGGER_ROLE_NAME" "$TAGGGER_ROLE_FILE"
+create_or_validate_role_definition "$TAGGER_ROLE_NAME" "$TAGGER_ROLE_FILE"
 create_or_validate_role_definition "$ENGINEER_ROLE_NAME" "$ENGINEER_ROLE_FILE"
 
 echo
