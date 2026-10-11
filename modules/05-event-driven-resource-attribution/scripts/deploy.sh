@@ -104,6 +104,31 @@ FUNCTION_ENDPOINT_ID="$FUNCTION_ID/functions/$FUNCTION_NAME"
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
 
+echo "Running local repository preflight..."
+
+for role_file in "$TAGGER_ROLE_FILE" "$ENGINEER_ROLE_FILE"; do
+  [[ -f "$role_file" ]] || die "Role definition file not found: $role_file"
+  python3 -m json.tool "$role_file" >/dev/null     || die "Invalid JSON in role definition file: $role_file"
+done
+
+for function_file in function_app.py host.json requirements.txt; do
+  [[ -f "$FUNCTION_DIR/$function_file" ]]     || die "Required Function project file missing: $FUNCTION_DIR/$function_file"
+done
+
+python3 -m json.tool "$FUNCTION_DIR/host.json" >/dev/null   || die "Invalid JSON in Function host.json"
+
+python3 - "$FUNCTION_DIR/function_app.py" <<'PY'
+import ast
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
+print("Function Python syntax validated.")
+PY
+
+echo "Local repository preflight passed."
+echo
 echo "Subscription: $SUB_ID"
 echo "Module 05 scope: $LAB_SCOPE"
 echo
@@ -177,7 +202,7 @@ with open(source_file, "r", encoding="utf-8-sig") as f:
 role["AssignableScopes"] = [f"/subscriptions/{subscription_id}"]
 
 with open(destination_file, "w", encoding="utf-8") as f:
-    json.dump(rol, f, indent=2)
+    json.dump(role, f, indent=2)
     f.write("\n")
 PY
 }
@@ -566,7 +591,7 @@ echo "Validating deployed Function trigger..."
 FUNCTION_TRIGGER=$(az functionapp function list \
   --resource-group "$RG_FINOPS_LAB" \
   --name "$FUNCTION_APP_NAME" \
-  --query "[?ends_with(name, '/$FUNCTION_NAME')].name | [0]" \
+  --query "[?name=='$FUNCTION_APP_NAME/$FUNCTION_NAME'].name | [0]" \
   -o tsv)
 
 [[ -n "$FUNCTION_TRIGGER" && "$FUNCTION_TRIGGER" != "null" ]] \
