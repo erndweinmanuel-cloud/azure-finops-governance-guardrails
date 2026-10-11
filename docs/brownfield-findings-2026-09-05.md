@@ -351,11 +351,34 @@ Event Grid then showed matched events with delivery failures and the Function di
 
 This incident was introduced during validation and is not classified as pre-existing Brownfield drift.
 
-### Repository reproducibility gap
+### Repository hardening result
 
-The live Module 05 implementation is healthy, but `modules/05-event-driven-resource-attribution/scripts/` is currently empty.
+Module 05 now contains Brownfield-safe deployment and cleanup scripts.
 
-The repository therefore cannot yet reproducibly reconcile or clean up the complete Module 05 infrastructure. This must be hardened before Shared Foundation stabilization and Terraform migration.
+The deployment script:
+
+- validates the shared Resource Group, governance tags, VNet/subnet, and external Entra groups
+- semantically validates the two custom role definitions
+- validates or creates the exact Module 05 role assignments
+- validates the existing Storage Account, Flex Consumption plan, Application Insights component, Function App runtime, Managed Identity, and storage settings
+- validates or creates the Event Grid system topic and event subscription
+- provides a read-only `--validate-only` mode
+- does not recreate missing core Function infrastructure implicitly during Brownfield hardening
+
+The `--validate-only` run completed successfully against the current live state with no Azure changes.
+
+The cleanup script defaults to dry-run mode and targets only Module 05-owned resources and exact Module 05 role assignments. The dry run completed successfully and preserved:
+
+- `rg-finops-lab`
+- Foundation governance tag values
+- `vnet-finops-lab/subnet-workload`
+- both external Entra groups
+- Module 03 and Module 04 policy resources
+- unrelated resources and assignments
+
+During dry run, both Module 05 custom roles were intentionally retained because their exact role assignments were still present. This is expected in dry-run mode and demonstrates conservative deletion behavior.
+
+No destructive cleanup was executed against the healthy live platform.
 
 ### Ownership direction
 
@@ -446,20 +469,19 @@ Module 01  validated
 Module 02  repaired and E2E validated
 Module 03  ownership-hardened and E2E validated
 Module 04  ownership-hardened and E2E validated
-Module 05  live/E2E validated; repository hardening in progress
-Foundation extraction  after Module 05 repository hardening
-Terraform migration    after Foundation stabilization
+Module 05  ownership-hardened, live/E2E validated, deploy validation passed, cleanup dry-run passed
+Foundation stabilization  next
+Terraform migration       after Foundation stabilization
 ```
 
 ## Next step
 
-Harden the Module 05 repository implementation:
+Stabilize the shared Foundation before Terraform migration:
 
-1. create a deployment script that validates shared Foundation and external identity dependencies
-2. reconcile only Module 05-owned resources
-3. create a cleanup script with strict ownership boundaries
-4. validate both scripts without dismantling the healthy live platform
-5. update Module 05 documentation
-6. commit the hardened Module 05 implementation
-7. stabilize the shared Foundation
-8. only then begin Terraform Brownfield migration
+1. define explicit repository ownership for `rg-ops-guardrails`, `rg-finops-lab`, Foundation governance tags, `vnet-finops-lab`, and `subnet-workload`
+2. verify that child modules only consume shared Foundation resources
+3. inspect `vm-finops-autostop-01NSG` for attachments and remove it only if it is confirmed orphaned
+4. decide and execute the central remediation path for historical governance-tag gaps
+5. revalidate Modules 01-05 against the stabilized Foundation
+6. classify the final Brownfield inventory as IMPORT, RECREATE, EXTERNAL, or TEMPORARY
+7. only then begin Terraform import and migration

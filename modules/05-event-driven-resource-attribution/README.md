@@ -2,7 +2,7 @@
 
 ## Status
 
-**Live Azure implementation validated end-to-end. Brownfield repository hardening in progress.**
+**Completed - live Azure state, repository reconciliation, ownership boundaries and cleanup dry-run validated.**
 
 Module 05 extends the FinOps governance platform with event-driven resource attribution and validates the complete control chain in Azure.
 
@@ -856,11 +856,19 @@ Module 05 owns or manages:
 
 The Function system-assigned Managed Identity follows the Function App lifecycle. Service-generated Application Insights resources such as the Smart Detection action group must not be deleted blindly as independently owned Module 05 resources.
 
-### Repository reproducibility gap
+### Repository hardening result
 
-The live implementation is healthy, but `modules/05-event-driven-resource-attribution/scripts/` is currently empty.
+The repository now contains Brownfield-safe deployment and cleanup scripts under:
 
-This is a configuration-management gap rather than functional Azure drift. Before Terraform migration, Module 05 deployment and cleanup behavior must be hardened so that shared Foundation resources are validated instead of owned, external Entra groups are consumed instead of created, and cleanup removes only Module 05-owned resources and assignments.
+`modules/05-event-driven-resource-attribution/scripts/`
+
+`deploy.sh` validates the shared Foundation and external Entra dependencies, semantically validates existing Module 05 infrastructure, reconciles Module 05 custom roles and exact role assignments, validates Event Grid wiring, and validates Function storage settings without printing secrets.
+
+A dedicated `--validate-only` mode was executed successfully against the live environment. It completed without creating, updating, or deleting Azure resources.
+
+`cleanup.sh` defaults to a read-only dry run. The dry run successfully identified only Module 05-owned resources and exact Module 05 role assignments while preserving the shared Resource Group, Foundation governance tags, VNet/subnet, external Entra groups, Module 03/04 policy resources, and unrelated resources.
+
+The custom-role warnings during dry run are expected: because the dry run deliberately does not remove the exact role assignments, each custom role still has one active assignment and is therefore conservatively retained.
 
 ### Current E2E validation
 
@@ -961,7 +969,7 @@ The resulting platform now demonstrates:
 - End-to-end Azure validation
 - Cleanup and cost awareness
 
-**Module 05 live validation: Completed**
+**Module 05: Completed**
 
 Next:
 
