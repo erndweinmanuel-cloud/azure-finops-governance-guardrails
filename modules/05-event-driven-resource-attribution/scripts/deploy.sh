@@ -31,6 +31,7 @@ require_cmd() {
 }
 
 DEPLOY_CODE=false
+VALIDATE_ONLY=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -38,12 +39,19 @@ while [[ $# -gt 0 ]]; do
       DEPLOY_CODE=true
       shift
       ;;
+    --validate-only)
+      VALIDATE_ONLY=true
+      shift
+      ;;
     -h|--help)
       cat <<'USAGE'
-Usage: ./deploy.sh [--deploy-code]
+Usage: ./deploy.sh [--validate-only] [--deploy-code]
 
-Without --deploy-code, the script performs Brownfield-safe validation and
+Without arguments, the script performs Brownfield-safe validation and
 reconciliation of Module 05 control-plane resources.
+
+With --validate-only, the script performs read-only validation and fails if a
+Module 05-owned resource or assignment is missing instead of creating it.
 
 With --deploy-code, it also packages and deploys the Python Function code to
 the existing Flex Consumption Function App.
@@ -55,6 +63,10 @@ USAGE
       ;;
   esac
 done
+
+if [[ "$VALIDATE_ONLY" == "true" && "$DEPLOY_CODE" == "true" ]]; then
+  die "--validate-only and --deploy-code cannot be used together."
+fi
 
 require_cmd az
 require_cmd python3
@@ -287,6 +299,10 @@ create_or_validate_role_definition() {
     -o tsv)
 
   if [[ -z "$role_id" || "$role_id" == "null" ]]; then
+    if [[ "$VALIDATE_ONLY" == "true" ]]; then
+      die "Custom role missing during validation-only run: $role_name"
+    fi
+
     echo "Custom role missing. Creating: $role_name"
     az role definition create --role-definition "$rendered_file" -o none
   else
@@ -309,6 +325,10 @@ create_or_validate_role_assignment() {
     -o tsv)
 
   if [[ -z "$assignment_id" || "$assignment_id" == "null" ]]; then
+    if [[ "$VALIDATE_ONLY" == "true" ]]; then
+      die "Role assignment missing during validation-only run: $role_name -> $principal_id"
+    fi
+
     echo "Role assignment missing. Creating: $role_name -> $principal_id"
     az_no_pathconv role assignment create \
       --assignee-object-id "$principal_id" \
@@ -619,6 +639,10 @@ if ! az_no_pathconv eventgrid system-topic show \
   --name "$SYSTEM_TOPIC_NAME" \
   -o none 2>/dev/null; then
 
+  if [[ "$VALIDATE_ONLY" == "true" ]]; then
+    die "Event Grid system topic missing during validation-only run: $SYSTEM_TOPIC_NAME"
+  fi
+
   echo "System topic missing. Creating: $SYSTEM_TOPIC_NAME"
   az_no_pathconv eventgrid system-topic create \
     --resource-group "$RG_FINOPS_LAB" \
@@ -671,6 +695,10 @@ if ! az_no_pathconv eventgrid system-topic event-subscription show \
   --system-topic-name "$SYSTEM_TOPIC_NAME" \
   --name "$EVENT_SUBSCRIPTION_NAME" \
   -o none 2>/dev/null; then
+
+  if [[ "$VALIDATE_ONLY" == "true" ]]; then
+    die "Event Grid event subscription missing during validation-only run: $EVENT_SUBSCRIPTION_NAME"
+  fi
 
   echo "Event subscription missing. Creating: $EVENT_SUBSCRIPTION_NAME"
   az_no_pathconv eventgrid system-topic event-subscription create \
@@ -731,7 +759,11 @@ print("Event Grid event subscription validated.")
 PY
 
 echo
-echo "Module 05 Brownfield deployment/reconciliation successful."
+if [[ "$VALIDATE_ONLY" == "true" ]]; then
+  echo "Module 05 Brownfield validation-only run successful."
+else
+  echo "Module 05 Brownfield deployment/reconciliation successful."
+fi
 echo
 echo "Shared / external resources preserved:"
 echo "- Resource Group: $RG_FINOPS_LAB"
