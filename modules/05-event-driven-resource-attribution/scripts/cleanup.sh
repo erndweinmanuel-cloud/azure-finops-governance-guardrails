@@ -74,6 +74,9 @@ SUB_ID=$(az account show --query id -o tsv)
 
 LAB_SCOPE="/subscriptions/$SUB_ID/resourceGroups/$RG_FINOPS_LAB"
 
+TMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TMP_DIR"' EXIT
+
 echo "Subscription: $SUB_ID"
 echo "Module 05 scope: $LAB_SCOPE"
 echo
@@ -134,16 +137,46 @@ delete_exact_role_assignment() {
 delete_custom_role_if_unassigned() {
   local role_name="$1"
 
-  local role_id
-  role_id=$(az role definition list     --name "$role_name"     --custom-role-only true     --query "[0].id"     -o tsv)
+  local role_guid
+  role_guid=$(az role definition list --name "$role_name" --custom-role-only true --query "[0].name" -o tsv)
 
-  if [[ -z "$role_id" || "$role_id" == "null" ]]; then
+  if [[ -z "$role_guid" || "$role_guid" == "null" ]]; then
     echo "Custom role not present, skipping: $role_name"
     return
   fi
 
+  # Avoid Azure CLI custom-role name resolution in:
+  # az role assignment list --role <custom-role-name> --all
+  #
+  # Some CLI builds fail in the resolver before listing assignments. Instead,
+  # list assignments first and filter locally by the immutable role GUID.
+  local assignments_file
+  assignments_file="$TMP_DIR/$(echo "$role_name" | tr ' /' '__').assignments.json"
+
+  az_no_pathconv role assignment list --all -o json > "$assignments_file"
+
   local remaining_count
-  remaining_count=$(az role assignment list     --role "$role_name"     --all     --query "length(@)"     -o tsv)
+  remaining_count=$(python3 - "$assignments_file" "$role_guid" "$role_name" <<'PY'
+import json
+import sys
+
+path, role_guid, role_name = sys.argv[1:4]
+role_guid = role_guid.lower()
+
+with open(path, "r", encoding="utf-8-sig") as f:
+    assignments = json.load(f)
+
+matches = []
+for item in assignments:
+    role_definition_id = str(item.get("roleDefinitionId", ""))
+    role_definition_guid = role_definition_id.rstrip("/").split("/")[-1].lower()
+
+    if role_definition_guid == role_guid or item.get("roleDefinitionName") == role_name:
+        matches.append(item)
+
+print(len(matches))
+PY
+)
 
   if [[ "$remaining_count" != "0" ]]; then
     echo "WARNING: Custom role still has $remaining_count assignment(s): $role_name"
@@ -154,7 +187,7 @@ delete_custom_role_if_unassigned() {
   echo "Target custom role: $role_name"
 
   if [[ "$EXECUTE" == "true" ]]; then
-    az role definition delete       --name "$role_name"
+    az role definition delete --name "$role_name"
     echo "Deleted custom role: $role_name"
   fi
 }
